@@ -31,19 +31,18 @@ RUN mkdir /code
 WORKDIR /code
 
 # Mount the package.json
-ADD package.json package-lock.json ./
+ADD web/package.json web/package-lock.json web/
 
 # Install the dependencies
-RUN npm i
+RUN npm --prefix=web i
 
 # Mount the necessary source code
-ADD .babelrc tsconfig.json webpack.config.js ./
 ADD .git .git
 ADD out/.env.aws out/.env.aws
 ADD web web
 
 # Build the project (additional ENV vars are read from a .env)
-RUN npm run build
+RUN npm --prefix=web run build
 
 #
 # ****************     DEPLOYMENT & SERVE STAGE     *******************
@@ -60,15 +59,15 @@ RUN mkdir /code
 WORKDIR /code
 
 # Copy the artifacts from the previous stage
-COPY --from=build-env /code/web/dist web/dist
+COPY --from=build-env /code/web/dist dist
 
 # Add the script that runs the express server
-ADD package.json .
-ADD  web/scripts web/scripts
+ADD web/package.json .
+ADD  web/scripts scripts
 
 # Install express
 #
-## WARNING: Be careful not to add the package.json, since it will install all of your dependencies
+## WARNING: Be careful not to add the package-lock.json, since it will install all of your dependencies
 ## even when you explicitly try to install a single one
 #
 RUN npm install express express-static-gzip
