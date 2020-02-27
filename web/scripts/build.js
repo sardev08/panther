@@ -15,9 +15,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 const { spawn } = require('child_process');
-const { loadDotEnvVars, getPantherDeploymentVersion } = require('./utils');
+const { loadDotEnvVars, getPantherDeploymentVersion, validateEnvVars } = require('./utils');
 
 // Mark the Node environment as production in order to load the webpack configuration
 process.env.NODE_ENV = 'production';
@@ -31,4 +30,7 @@ loadDotEnvVars('web/.env.sentry');
 // Add all the aws-related ENV vars to process.env
 loadDotEnvVars('out/.env.aws');
 
-spawn('node_modules/.bin/webpack', { stdio: 'inherit' });
+// Validate that the minimum required vars have been set
+validateEnvVars();
+
+spawn('node_modules/.bin/webpack', ['--config', './web/webpack.config.js'], { stdio: 'inherit' });

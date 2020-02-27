@@ -16,7 +16,6 @@
 /* eslint-disable prefer-object-spread */
 
 const path = require('path');
-const resolve = require('resolve');
 const webpack = require('webpack');
 const InlineChunkHtmlPlugin = require('react-dev-utils/InlineChunkHtmlPlugin');
 const TerserPlugin = require('terser-webpack-plugin');
@@ -259,9 +258,6 @@ module.exports = {
     // (since those were previously handled by `ts-loader`). This plugin makes sure to ONLY perform
     // the checks without compiling anything
     new ForkTsCheckerWebpackPlugin({
-      typescript: resolve.sync('typescript', {
-        basedir: path.resolve(__dirname, '../node_modules'),
-      }),
       async: isEnvDevelopment,
       useTypescriptIncrementalApi: true,
       checkSyntacticErrors: true,

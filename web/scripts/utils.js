@@ -36,4 +36,20 @@ function getPantherDeploymentVersion() {
   }
 }
 
-module.exports = { loadDotEnvVars, getPantherDeploymentVersion };
+function validateEnvVars() {
+  const requiredEnvVars = [
+    'AWS_ACCOUNT_ID',
+    'AWS_REGION',
+    'WEB_APPLICATION_GRAPHQL_API_ENDPOINT',
+    'WEB_APPLICATION_USER_POOL_CLIENT_ID',
+    'WEB_APPLICATION_USER_POOL_ID',
+  ];
+
+  const unsetEnvVars = requiredEnvVars.filter(env => process.env[env] === undefined);
+  if (unsetEnvVars.length) {
+    // eslint-disable-next-line no-console
+    throw new Error(chalk.red(`Couldn't find the following ENV vars: ${unsetEnvVars.join(', ')}`));
+  }
+}
+
+module.exports = { loadDotEnvVars, getPantherDeploymentVersion, validateEnvVars };
