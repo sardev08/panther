@@ -92,7 +92,7 @@ func (Setup) Python() {
 
 // Web Npm install
 func (Setup) Web() {
-	if err := sh.RunV("npm", "i"); err != nil {
+	if err := sh.RunV("npm", "--prefix=web", "i"); err != nil {
 		logger.Fatalf("npm install failed: %v", err)
 	}
 }

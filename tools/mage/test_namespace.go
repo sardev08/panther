@@ -233,23 +233,22 @@ func (t Test) Web() {
 func testWeb() bool {
 	pass := true
 
-	if _, err := os.Stat("node_modules"); err != nil {
+	if _, err := os.Stat("web/node_modules"); err != nil {
 		logger.Errorf("npm not initialized (%v): run 'mage setup:web'", err)
 		return false
 	}
 
-	logger.Info("test:web: npm run lint")
-	if err := sh.RunV("npm", "run", "lint"); err != nil {
-		logger.Errorf("npm lint failed: %v", err)
+	logger.Info("test:web: npm --prefix=web run lint")
+	if err := sh.RunV("npm", "--prefix=web", "run", "lint"); err != nil {
+		logger.Errorf("npm run lint failed: %v", err)
 		pass = false
 	}
 
-	// TODO - re-enable once https://npmjs.com/advisories/1217 is resolved
-	//logger.Info("test:web: npm audit")
-	//if err := sh.RunV("npm", "audit"); err != nil {
-	//	logger.Errorf("npm audit failed: %v", err)
-	//	pass = false
-	//}
+	logger.Info("test:web: npm --prefix=web audit")
+	if err := sh.RunV("npm", "--prefix=web", "audit"); err != nil {
+		logger.Errorf("npm audit failed: %v", err)
+		pass = false
+	}
 
 	return pass
 }
