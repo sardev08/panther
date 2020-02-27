@@ -50,7 +50,7 @@ const ComplianceSourceTableRowOptions: React.FC<ComplianceSourceTableRowOptionsP
           })
         }
       >
-        <MenuItem variant="default22">Edit</MenuItem>
+        <MenuItem variant="default">Edit</MenuItem>
       </Dropdown.Item>
       <Dropdown.Item
         onSelect={() =>
