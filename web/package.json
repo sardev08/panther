@@ -22,7 +22,7 @@
     "@emotion/core": "^10.0.21"
   },
   "sideEffects": [
-    "./web/src/config.ts"
+    "./src/config.ts"
   ],
   "dependencies": {
     "@apollo/client": "^3.0.0-beta.31",
@@ -110,10 +110,10 @@
     "yup": "^0.28.1"
   },
   "scripts": {
-    "build": "node web/scripts/build.js",
-    "start": "node web/scripts/start.js",
-    "serve": "node web/scripts/serve.js",
-    "generate-gql": "graphql-codegen -c web/codegen.json",
-    "lint": "eslint \"{web/src/**,.}/*.{ts,js,tsx}\" && prettier --list-different \"{web/src/**,.}/*.{ts,js,tsx,md,json,yml}\" && tsc -p ."
+    "build": "node scripts/build.js",
+    "start": "node scripts/start.js",
+    "serve": "node scripts/serve.js",
+    "generate-gql": "graphql-codegen",
+    "lint": "eslint \"{src/**,.}/*.{ts,js,tsx}\" && prettier --list-different \"{src/**,.}/*.{ts,js,tsx,md,json,yml}\" && tsc -p ."
   }
 }

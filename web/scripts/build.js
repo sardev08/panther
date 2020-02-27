@@ -25,12 +25,12 @@ process.env.NODE_ENV = 'production';
 process.env.PANTHER_VERSION = getPantherDeploymentVersion();
 
 // Add all the sentry-related ENV vars to process.env
-loadDotEnvVars('web/.env.sentry');
+loadDotEnvVars('.env.sentry');
 
 // Add all the aws-related ENV vars to process.env
-loadDotEnvVars('out/.env.aws');
+loadDotEnvVars('../out/.env.aws');
 
 // Validate that the minimum required vars have been set
 validateEnvVars();
 
-spawn('node_modules/.bin/webpack', ['--config', './web/webpack.config.js'], { stdio: 'inherit' });
+spawn('node_modules/.bin/webpack', { stdio: 'inherit' });

@@ -22,11 +22,11 @@ const { loadDotEnvVars, validateEnvVars } = require('./utils');
 process.env.NODE_ENV = 'development';
 
 // Add all the aws-related ENV vars to process.env
-loadDotEnvVars('out/.env.aws');
+loadDotEnvVars('../out/.env.aws');
 
 // Validate that the minimum required vars have been set
 validateEnvVars();
 
-spawn('node_modules/.bin/webpack-dev-server', ['--config', 'web/webpack.config.js'], {
+spawn('node_modules/.bin/webpack-dev-server', {
   stdio: 'inherit',
 });
