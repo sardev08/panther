@@ -7,7 +7,7 @@
         {
           "typescript": {
             "scalars": {
-              "AWSEmail": "string",
+              "AWSEmail": "number",
               "AWSPhone": "string",
               "AWSTimestamp": "number",
               "AWSDateTime": "string",
