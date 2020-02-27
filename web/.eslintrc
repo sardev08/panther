@@ -10,7 +10,7 @@
     "browser": true,
     "node": true
   },
-  "ignorePatterns": ["npm-debug.log*", "node_modules", "web/dist", "web/__generated__"],
+  "ignorePatterns": ["npm-debug.log*", "node_modules", "dist", "__generated__"],
   "rules": {
     "import/prefer-default-export": 0,
     "max-len": 0,
@@ -53,7 +53,7 @@
   "settings": {
     "import/resolver": {
       "webpack": {
-        "config": "./web/webpack.config.js"
+        "config": "./webpack.config.js"
       }
     },
     "react": {
