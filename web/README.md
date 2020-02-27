@@ -2,9 +2,6 @@
 
 Dashboard UI for Panther
 
-> Due to multiple package management, please consider the project root as the current working directory
-> for the following document sections
-
 ### Intro
 
 To setup the project all you need to do is install its dependencies by running:
@@ -17,7 +14,7 @@ $ npm i
 
 In order to develop locally, you must first have the project deployed on your AWS account. If you've successfully done that,
 then a `.env.aws` file will be present in the `/out` directory, which holds the ENV vars that
-are needed for local development. With this file present in `/out/.env.aws`, all you need to do is run (from the panther root directory):
+are needed for local development. With this file present in `/out/.env.aws`, all you need to do is run:
 
 ```
 npm run start
