@@ -13,7 +13,7 @@ $ npm i
 ### Development
 
 In order to develop locally, you must first have the project deployed on your AWS account. If you've successfully done that,
-then a `.env.aws` file will be present in the `/out` directory, which holds the ENV vars that
+then a `.env.aws` file will be present in the `/out` top-level directory, which holds the ENV vars that
 are needed for local development. With this file present in `/out/.env.aws`, all you need to do is run:
 
 ```
