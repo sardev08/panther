@@ -38,5 +38,5 @@ type UpdateIntegrationItem struct {
 	ScanIntervalMins     *int       `json:"scanIntervalMins"`
 	S3Buckets            []*string  `json:"s3Buckets" dynamodbav:"s3Buckets,stringset"`
 	KmsKeys              []*string  `json:"kmsKeys" dynamodbav:"kmsKeys,stringset"`
-	LogTpes              []*string  `json:"logTypes" dynamodbav:"logTypes,stringset"`
+	LogTypes             []*string  `json:"logTypes" dynamodbav:"logTypes,stringset"`
 }
