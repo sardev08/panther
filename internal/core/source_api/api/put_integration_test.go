@@ -336,6 +336,7 @@ func TestPutLogIntegrationUpdateSqsQueuePermissions(t *testing.T) {
 				UserID:          aws.String(testUserID),
 				S3Buckets:       aws.StringSlice([]string{"bucket"}),
 				KmsKeys:         aws.StringSlice([]string{"keyarns"}),
+				LogTypes:        aws.StringSlice([]string{"log.type"}),
 			},
 		},
 	})
@@ -360,6 +361,7 @@ func TestPutLogIntegrationUpdateSqsQueuePermissionsFailure(t *testing.T) {
 				UserID:          aws.String(testUserID),
 				S3Buckets:       aws.StringSlice([]string{"bucket"}),
 				KmsKeys:         aws.StringSlice([]string{"keyarns"}),
+				LogTypes:        aws.StringSlice([]string{"log.type"}),
 			},
 		},
 	})

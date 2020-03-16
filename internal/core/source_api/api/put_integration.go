@@ -211,5 +211,6 @@ func generateNewIntegration(input *models.PutIntegrationSettings) *models.Source
 		// For log analysis integrations
 		S3Buckets: input.S3Buckets,
 		KmsKeys:   input.KmsKeys,
+		LogTypes:  input.LogTypes,
 	}
 }

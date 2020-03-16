@@ -64,6 +64,7 @@ func (api API) UpdateIntegrationSettings(input *models.UpdateIntegrationSettings
 		RemediationEnabled: input.RemediationEnabled,
 		S3Buckets:          input.S3Buckets,
 		KmsKeys:            input.KmsKeys,
+		LogTpes:            input.LogTypes,
 	})
 }
 

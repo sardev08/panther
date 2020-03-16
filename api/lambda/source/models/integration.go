@@ -41,6 +41,7 @@ type SourceIntegrationMetadata struct {
 	ScanIntervalMins   *int       `json:"scanIntervalMins"`
 	S3Buckets          []*string  `json:"s3Buckets"`
 	KmsKeys            []*string  `json:"kmsKeys"`
+	LogTypes           []*string  `json:"logTypes"`
 }
 
 // SourceIntegrationStatus provides context that the full scan works and that events are being received.
