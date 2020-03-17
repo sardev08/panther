@@ -34,7 +34,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/fatih/color"
 	"github.com/magefile/mage/sh"
 	"gopkg.in/yaml.v2"
 
@@ -50,6 +49,9 @@ import (
 
 const (
 	// CloudFormation templates + stacks
+	bootstrapStack = "panther-bootstrap"
+	bootstrapTemplate = "deployments/bootstrap.yml"
+
 	backendStack    = "panther-app"
 	backendTemplate = "deployments/backend.yml"
 	bucketStack     = "panther-buckets" // prereq stack with Panther S3 buckets
@@ -102,55 +104,60 @@ func Deploy() {
 		logger.Fatal(err)
 	}
 
-	deployPrecheck(aws.StringValue(awsSession.Config.Region))
-	Build.Lambda(Build{})
-	preprocessTemplates()
-
+	deployPrecheck(*awsSession.Config.Region)
 	logger.Infof("deploy: deploying Panther to %s", *awsSession.Config.Region)
 
-	// Deploy prerequisite bucket stack
-	bucketParams := map[string]string{
-		"AccessLogsBucketName": config.BucketsParameterValues.AccessLogsBucketName,
-	}
-	bucketOutputs := deployTemplate(awsSession, bucketTemplate, "", bucketStack, bucketParams)
-	bucket := bucketOutputs["SourceBucketName"]
-
-	// Deploy main application stack
-	params := getBackendDeployParams(awsSession, &config, bucket, bucketOutputs["LogBucketName"])
-	backendOutputs := deployTemplate(awsSession, backendTemplate, bucket, backendStack, params)
-	if err := postDeploySetup(awsSession, backendOutputs, &config); err != nil {
-		logger.Fatal(err)
-	}
-
-	// the below can all be done in parallel to speed deployment
+	// Stage 1 - bootstrap.yml, compile Lambda functions, generate CFN
 	var wg sync.WaitGroup
-	runDeploy := func(deployFunc func()) {
-		wg.Add(1)
-		go func() {
-			deployFunc()
-			wg.Done()
-		}()
-	}
+	outputs := bootstrapStage(awsSession, wg)
+	fmt.Println(outputs)
 
-	// Creates Glue/Athena related resources
-	runDeploy(func() { deployDatabases(awsSession, bucket, backendOutputs) })
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-	// Deploy frontend stack
-	runDeploy(func() { deployFrontend(awsSession, bucket, backendOutputs, &config) })
 
-	// Deploy monitoring
-	runDeploy(func() { deployMonitoring(awsSession, bucket, backendOutputs, &config) })
-
-	// Onboard Panther account to Panther
-	if config.OnboardParameterValues.OnboardSelf {
-		runDeploy(func() { deployOnboard(awsSession, bucket, backendOutputs) })
-	}
-
-	wg.Wait()
-
-	// Done!
+	//// Deploy prerequisite bucket stack
+	//bucketParams := map[string]string{
+	//	"AccessLogsBucketName": config.BucketsParameterValues.AccessLogsBucketName,
+	//}
+	//bucketOutputs := deployTemplate(awsSession, bucketTemplate, "", bucketStack, bucketParams)
+	//bucket := bucketOutputs["SourceBucketName"]
+	//
+	//// Deploy main application stack
+	//params := getBackendDeployParams(awsSession, &config, bucket, bucketOutputs["LogBucketName"])
+	//backendOutputs := deployTemplate(awsSession, backendTemplate, bucket, backendStack, params)
+	//if err := postDeploySetup(awsSession, backendOutputs, &config); err != nil {
+	//	logger.Fatal(err)
+	//}
+	//
+	//// the below can all be done in parallel to speed deployment
+	//var wg sync.WaitGroup
+	//runDeploy := func(deployFunc func()) {
+	//	wg.Add(1)
+	//	go func() {
+	//		deployFunc()
+	//		wg.Done()
+	//	}()
+	//}
+	//
+	//// Creates Glue/Athena related resources
+	//runDeploy(func() { deployDatabases(awsSession, bucket, backendOutputs) })
+	//
+	//// Deploy frontend stack
+	//runDeploy(func() { deployFrontend(awsSession, bucket, backendOutputs, &config) })
+	//
+	//// Deploy monitoring
+	//runDeploy(func() { deployMonitoring(awsSession, bucket, backendOutputs, &config) })
+	//
+	//// Onboard Panther account to Panther
+	//if config.OnboardParameterValues.OnboardSelf {
+	//	runDeploy(func() { deployOnboard(awsSession, bucket, backendOutputs) })
+	//}
+	//
+	//wg.Wait()
+	//
+	//// Done!
 	logger.Infof("deploy: finished successfully in %s", time.Since(start))
-	color.Yellow("\nPanther URL = https://%s\n", backendOutputs["LoadBalancerUrl"])
+	//color.Yellow("\nPanther URL = https://%s\n", backendOutputs["LoadBalancerUrl"])
 }
 
 // Fail the deploy early if there is a known issue with the user's environment.
@@ -169,6 +176,45 @@ func deployPrecheck(awsRegion string) {
 	if !supportedRegions[awsRegion] {
 		logger.Fatalf("panther is not supported in %s region", awsRegion)
 	}
+}
+
+// Deploy stage 1: everything that does not require S3
+//
+// In parallel: deploy bootstrap.yml, compile Lambda source, generate CFN templates
+func bootstrapStage(awsSession *session.Session, wg sync.WaitGroup) map[string]string {
+	var bootstrapOutputs map[string]string
+	wg.Add(3)
+
+	go func() {
+		// TODO: proper parameters loaded from config file
+		params := map[string]string{"CertificateArn": "arn:aws:acm:us-east-1:101802775469:certificate/3eaac00a-09fd-469e-87d5-4620442e46b2"} //uploadLocalCertificate(awsSession)}
+		bootstrapOutputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
+		wg.Done()
+	}()
+
+	go func() {
+		Build.Lambda(Build{})
+		wg.Done()
+	}()
+
+	go func() {
+		// TODO: build.Cfn to build all autogenerated templates
+		embedAPISpecs()
+		if err := generateGlueTables(); err != nil {
+			logger.Fatal(err)
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+	return bootstrapOutputs
+}
+
+// Deploy stage 2: everything that does not require API gateway
+//
+// In parallel: deploy api-gateway, glue tables, onboarding, frontend, monitoring
+func gatewayStage(awsSession *session.Session, wg sync.WaitGroup) map[string]map[string]string {
+	return nil
 }
 
 // Generate the set of deploy parameters for the main application stack.

@@ -30,10 +30,6 @@ Parameters:
     Type: String
     Description: Optional bucket for storing S3 access logs. If not specified, one is created for you
     Default: ''
-  AlarmSNSTopicArn:
-    Type: String
-    Description: The ARN of SNS topic to send alarms. If not specified, one is created for you
-    Default: ''
   CloudWatchLogRetentionDays:
     Type: Number
     Description: CloudWatch log retention period
@@ -57,7 +53,6 @@ Mappings:
       CIDR: 10.0.0.64/26
 
 Conditions:
-  CreateAlarmSNSTopic: !Equals [!Ref AlarmSNSTopicArn, '']
   CreateLogBucket: !Equals [!Ref AccessLogsBucketName, '']
   TracingEnabled: !Not [!Equals ['', !Ref TracingMode]]
   UseCustomDomain: !Not [!Equals [!Ref CustomDomain, '']]
@@ -544,12 +539,6 @@ Resources:
       TargetKeyId: !Ref QueueEncryptionKey
 
   ########## SNS ##########
-  AlarmNotifications:
-    Condition: CreateAlarmSNSTopic
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: panther-alarms
-
   ProcessedDataNotifications:
     Type: AWS::SNS::Topic
     Properties:
@@ -557,9 +546,22 @@ Resources:
       KmsMasterKeyId: !Ref QueueEncryptionKey
 
 Outputs:
-  SourceBucketName:
+  AnalysisVersionsBucket:
+    Description: S3 bucket name for analysis-api versioning
+    Value: !Ref AnalysisVersionsBucket
+  AthenaResultsBucket:
+    Description: S3 bucket name for Athena results
+    Value: !Ref AthenaResultsBucket
+  ProcessedDataBucket:
+    Description: S3 bucket name for processed log data
+    Value: !Ref ProcessedDataBucket
+  SourceBucket:
     Description: S3 bucket name for Panther CloudFormation packaging
     Value: !Ref SourceBucket
+
+  QueueEncryptionKeyId:
+    Description: KMS key for encrypting Panther SQS queues
+    Value: !Ref QueueEncryptionKey
   LoadBalancerUrl:
     Description: Panther URL (application load balancer)
     Value: !If [UseCustomDomain, !Ref CustomDomain, !GetAtt PublicLoadBalancer.DNSName]
