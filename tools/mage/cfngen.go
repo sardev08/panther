@@ -43,15 +43,14 @@ var (
 
 // Generate Glue tables for log processor output as CloudFormation
 func generateGlueTables() error {
-	outDir := filepath.Join("out", "deployments", "log_analysis")
+	outDir := filepath.Dir(glueTemplate)
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %v", outDir, err)
 	}
-	glueCfFileName := filepath.Join(outDir, "gluetables.json")
 
-	glueCfFile, err := os.Create(glueCfFileName)
+	glueCfFile, err := os.Create(glueTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %v", glueCfFileName, err)
+		return fmt.Errorf("failed to create file %s: %v", glueTemplate, err)
 	}
 	defer glueCfFile.Close()
 
@@ -63,7 +62,7 @@ func generateGlueTables() error {
 	}
 
 	if _, err = glueCfFile.Write(cf); err != nil {
-		return fmt.Errorf("failed to write file %s: %v", glueCfFileName, err)
+		return fmt.Errorf("failed to write file %s: %v", glueTemplate, err)
 	}
 	return nil
 }

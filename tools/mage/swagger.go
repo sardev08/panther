@@ -30,6 +30,9 @@ import (
 )
 
 const (
+	apiTemplate = "deployments/api_gateway.yml"
+	apiEmbeddedTemplate = "out/deployments/embedded.api_gateway.yml"
+
 	pantherLambdaKey = "x-panther-lambda-cfn-resource" // top-level key in Swagger file
 	space8           = "        "
 )
@@ -37,9 +40,9 @@ const (
 // Match "DefinitionBody: api/myspec.yml  # possible comment"
 var swaggerPattern = regexp.MustCompile(`\n {6}DefinitionBody:[ \t]*[\w./]+\.yml[ \t]*(#.+)?`)
 
-// Embed swagger specs into all CloudFormation templates, saving them to out/deployments.
+// Embed swagger specs into the API gateway template, saving it to out/deployments.
 func embedAPISpec() {
-	cfn := readFile(gatewayTemplate)
+	cfn := readFile(apiTemplate)
 
 	newCfn, err := embedAPIs(cfn)
 	if err != nil {
@@ -47,14 +50,12 @@ func embedAPISpec() {
 	}
 
 	// Save the new file
-	outDir := filepath.Join("out", filepath.Dir(gatewayTemplate))
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		logger.Fatalf("failed to create directory %s: %v", outDir, err)
+	if err := os.MkdirAll(filepath.Dir(apiEmbeddedTemplate), 0755); err != nil {
+		logger.Fatalf("failed to create directory %s: %v", filepath.Dir(apiEmbeddedTemplate), err)
 	}
 
-	cfnDest := filepath.Join(outDir, "embedded."+filepath.Base(gatewayTemplate))
-	logger.Debugf("deploy: transformed %s => %s with embedded APIs", gatewayTemplate, cfnDest)
-	writeFile(cfnDest, newCfn)
+	logger.Debugf("deploy: transformed %s => %s with embedded APIs", apiTemplate, apiEmbeddedTemplate)
+	writeFile(apiEmbeddedTemplate, newCfn)
 }
 
 // Transform a single CloudFormation template by embedding Swagger definitions.

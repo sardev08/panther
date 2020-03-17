@@ -33,6 +33,8 @@ import (
 )
 
 const (
+	maxTemplateSize = 51200 // Max file size before CFN templates must be uploaded to S3
+
 	pollInterval = 5 * time.Second // How long to wait in between requests to the CloudFormation service
 	pollTimeout  = time.Hour       // Give up if CreateChangeSet or ExecuteChangeSet takes longer than this
 )
@@ -54,7 +56,7 @@ func deployTemplate(
 
 	client := cloudformation.New(awsSession)
 
-	changeID, outputs := createChangeSet(client, templatePath, stack, params)
+	changeID, outputs := createChangeSet(awsSession, client, templatePath, bucket, stack, params)
 	if changeID == nil {
 		return outputs
 	}
@@ -65,7 +67,10 @@ func deployTemplate(
 // Upload resources to S3 and return the path to the modified CloudFormation template.
 // TODO - implement this directly to avoid the aws cli (https://github.com/panther-labs/panther/issues/136)
 func cfnPackage(templatePath, bucket, stack string) string {
-	outputDir := filepath.Join("out", filepath.Dir(templatePath))
+	outputDir := filepath.Dir(templatePath)
+	if !strings.HasPrefix(outputDir, "out") {
+		outputDir = filepath.Join("out", outputDir)
+	}
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		logger.Fatalf("failed to create directory %s: %v", outputDir, err)
 	}
@@ -133,7 +138,11 @@ func fixPackageTemplateURL(line string) string {
 // If there are pending changes, the change set id and no outputs are returned.
 // Otherwise, the change set is deleted and a nil id with the stack outputs are returned.
 func createChangeSet(
-	client *cloudformation.CloudFormation, templateFile, stack string, params map[string]string) (*string, map[string]string) {
+	awsSession *session.Session,
+	client *cloudformation.CloudFormation,
+	templateFile, bucket, stack string,
+	params map[string]string,
+	) (*string, map[string]string) {
 
 	// Change set type - CREATE if a new stack otherwise UPDATE
 	stackDetail, err := client.DescribeStacks(&cloudformation.DescribeStacksInput{StackName: &stack})
@@ -172,7 +181,18 @@ func createChangeSet(
 				Value: aws.String("Panther"),
 			},
 		},
-		TemplateBody: aws.String(string(readFile(templateFile))),
+	}
+
+	contents := readFile(templateFile)
+	if len(contents) <= maxTemplateSize {
+		createInput.TemplateBody = aws.String(string(contents))
+	}
+	if len(contents) >= maxTemplateSize {
+		upload, err := uploadFileToS3(awsSession, templateFile, bucket, filepath.Base(templateFile), nil)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		createInput.TemplateURL = &upload.Location
 	}
 
 	logger.Infof("deploy: %s CloudFormation stack %s (may take several minutes)", changeSetType, stack)

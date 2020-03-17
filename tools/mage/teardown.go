@@ -197,7 +197,7 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 	handleResult(<-results)
 
 	// Trigger the deletion of the remaining stacks in parallel
-	parallelStacks := []string{backendStack, monitoringStack, databasesStack, bucketStack}
+	parallelStacks := []string{backendStack, monitoringStack, glueStack, bucketStack}
 	logger.Infof("deleting CloudFormation stacks: %s", strings.Join(parallelStacks, ", "))
 	for _, stack := range parallelStacks {
 		go deleteStack(client, aws.String(stack), results)

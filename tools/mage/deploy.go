@@ -21,6 +21,8 @@ package mage
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/panther-labs/panther/pkg/awsathena"
+	"github.com/panther-labs/panther/tools/athenaviews"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -51,9 +53,14 @@ const (
 	// CloudFormation templates + stacks
 	bootstrapStack = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
-	gatewayStack = "panther-api-gateway"
-	gatewayTemplate = "deployments/api_gateway.yml"
 
+	glueStack    = "panther-glue"
+	glueTemplate = "out/deployments/gluetables.json"
+	gatewayStack = "panther-api-gateway"
+	gatewayTemplate = apiEmbeddedTemplate
+
+
+	// OLD ...
 	backendStack    = "panther-app"
 	backendTemplate = "deployments/backend.yml"
 	bucketStack     = "panther-buckets" // prereq stack with Panther S3 buckets
@@ -110,9 +117,11 @@ func Deploy() {
 	logger.Infof("deploy: deploying Panther to %s", *awsSession.Config.Region)
 
 	// Stage 1 - bootstrap.yml, compile Lambda functions, generate CFN
-	var wg sync.WaitGroup
-	outputs := bootstrapStage(awsSession, wg)
-	fmt.Println(outputs)
+	outputs := bootstrapStage(awsSession)
+
+	source := outputs["SourceBucket"]
+	stackStuff := gatewayStage(awsSession, outputs["AthenaResultsBucket"], outputs["ProcessedDataBucket"], source)
+	fmt.Println(stackStuff)
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -183,8 +192,9 @@ func deployPrecheck(awsRegion string) {
 // Deploy stage 1: everything that does not require S3
 //
 // In parallel: deploy bootstrap.yml, compile Lambda source, generate CFN templates
-func bootstrapStage(awsSession *session.Session, wg sync.WaitGroup) map[string]string {
+func bootstrapStage(awsSession *session.Session) map[string]string {
 	var bootstrapOutputs map[string]string
+	var wg sync.WaitGroup
 	wg.Add(3)
 
 	go func() {
@@ -215,8 +225,46 @@ func bootstrapStage(awsSession *session.Session, wg sync.WaitGroup) map[string]s
 // Deploy stage 2: everything that does not require API gateway
 //
 // In parallel: deploy api-gateway, glue tables, onboarding, frontend, monitoring
-func gatewayStage(awsSession *session.Session, wg sync.WaitGroup) map[string]map[string]string {
-	return nil
+// Returns a map from stack name => outputs
+func gatewayStage(awsSession *session.Session, athenaBucket, dataBucket, sourceBucket string) map[string]map[string]string {
+	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
+
+	// Keeping these separate variables prevents concurrency conflicts
+	var gatewayOutputs, glueOutputs map[string]string
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// API Gateway
+	go func() {
+		// TODO: parameters
+		// TODO: fix name embedding
+		// gatewayOutputs = deployTemplate(awsSession, gatewayTemplate, sourceBucket, gatewayStack, nil)
+		wg.Done()
+	}()
+
+	// Athena/Glue
+	go func() {
+		params := map[string]string{"ProcessedDataBucket": dataBucket}
+		glueOutputs = deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, params)
+
+		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
+		const workgroup = "primary"
+		if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
+			logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
+		}
+		if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
+			logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
+		}
+
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return map[string]map[string]string {
+		gatewayStack: gatewayOutputs,
+		glueStack: glueOutputs,
+	}
 }
 
 // Generate the set of deploy parameters for the main application stack.
