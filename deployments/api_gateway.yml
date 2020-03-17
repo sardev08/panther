@@ -1,0 +1,92 @@
+# Panther is a scalable, powerful, cloud-native SIEM written in Golang/React.
+# Copyright (C) 2020 Panther Labs Inc
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: API gateway definitions
+
+# 'mage deploy' embeds swagger definitions directly into this template, which will make it quite large.
+# For this reason, we don't include any other resources here.
+
+Parameters:
+  TracingEnabled:
+    Type: String
+    Description: Enable XRay tracing on API Gateway
+    AllowedValues: [true, false]
+    Default: false
+
+Resources:
+  AnalysisApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      DefinitionBody: api/gateway/analysis/api.yml
+      EndpointConfiguration: REGIONAL
+      Name: panther-analysis-api
+      # <cfndoc>
+      # The `panther-analysis-api` API Gateway calles the `panther-analysis-api` lambda.
+      # </cfndoc>
+      StageName: v1
+      TracingEnabled: !Ref TracingEnabled
+
+  ComplianceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      DefinitionBody: api/gateway/compliance/api.yml
+      EndpointConfiguration: REGIONAL
+      Name: panther-compliance-api
+      # <cfndoc>
+      # The `panther-compliance-api` API Gateway calls the `panther-compliance-api` lambda.
+      # </cfndoc>
+      StageName: v1
+      TracingEnabled: !Ref TracingEnabled
+
+  RemediationApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      DefinitionBody: api/gateway/remediation/api.yml
+      EndpointConfiguration: REGIONAL
+      Name: panther-remediation-api
+      # <cfndoc>
+      # The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
+      # </cfndoc>
+      StageName: v1
+      TracingEnabled: !Ref TracingEnabled
+
+  ResourcesApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      DefinitionBody: api/gateway/resources/api.yml
+      EndpointConfiguration: REGIONAL
+      Name: panther-resources-api
+      # <cfndoc>
+      # The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
+      # </cfndoc>
+      StageName: v1
+      TracingEnabled: !Ref TracingEnabled
+
+Outputs:
+  AnalysisApiId:
+    Description: Analysis API Gateway ID
+    Value: !Ref AnalysisApi
+  ComplianceApiId:
+    Description: Compliance API Gateway ID
+    Value: !Ref ComplianceApi
+  RemediationApiId:
+    Description: Remediation API Gateway ID
+    Value: !Ref RemediationApi
+  ResourcesApiId:
+    Description: Resources API Gateway ID
+    Value: !Ref ResourcesApi

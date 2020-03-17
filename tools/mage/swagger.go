@@ -38,41 +38,28 @@ const (
 var swaggerPattern = regexp.MustCompile(`\n {6}DefinitionBody:[ \t]*[\w./]+\.yml[ \t]*(#.+)?`)
 
 // Embed swagger specs into all CloudFormation templates, saving them to out/deployments.
-func embedAPISpecs() {
-	var templates []string
-	walk("deployments", func(path string, info os.FileInfo) {
-		if strings.HasSuffix(path, ".yml") && path != configFile {
-			templates = append(templates, path)
-		}
-	})
+func embedAPISpec() {
+	cfn := readFile(gatewayTemplate)
 
-	for _, template := range templates {
-		cfn := readFile(template)
-
-		newCfn, err := embedAPIs(cfn)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		if newCfn != nil {
-			// Changes were made - save the new file
-			outDir := filepath.Join("out", filepath.Dir(template))
-			if err := os.MkdirAll(outDir, 0755); err != nil {
-				logger.Fatalf("failed to create directory %s: %v", outDir, err)
-			}
-
-			cfnDest := filepath.Join(outDir, "embedded."+filepath.Base(template))
-			logger.Debugf("deploy: transformed %s => %s with embedded APIs", template, cfnDest)
-			writeFile(cfnDest, newCfn)
-		}
+	newCfn, err := embedAPIs(cfn)
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	// Save the new file
+	outDir := filepath.Join("out", filepath.Dir(gatewayTemplate))
+	if err := os.MkdirAll(outDir, 0755); err != nil {
+		logger.Fatalf("failed to create directory %s: %v", outDir, err)
+	}
+
+	cfnDest := filepath.Join(outDir, "embedded."+filepath.Base(gatewayTemplate))
+	logger.Debugf("deploy: transformed %s => %s with embedded APIs", gatewayTemplate, cfnDest)
+	writeFile(cfnDest, newCfn)
 }
 
 // Transform a single CloudFormation template by embedding Swagger definitions.
-//
-// Returns the new template body, or nil if no changes were necessary.
 func embedAPIs(cfn []byte) ([]byte, error) {
 	var err error
-	changed := false
 
 	cfn = swaggerPattern.ReplaceAllFunc(cfn, func(match []byte) []byte {
 		strMatch := strings.TrimSpace(string(match))
@@ -84,17 +71,10 @@ func embedAPIs(cfn []byte) ([]byte, error) {
 			return nil // stop here and the top-level err will be returned
 		}
 
-		changed = true
 		return []byte("\n      DefinitionBody:\n" + *body)
 	})
 
-	if err != nil {
-		return nil, err
-	}
-	if !changed {
-		return nil, nil
-	}
-	return cfn, nil
+	return cfn, err
 }
 
 // Load and transform a Swagger api.yml file for embedding in CloudFormation.
