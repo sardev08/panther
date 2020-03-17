@@ -62,17 +62,17 @@ Conditions:
 
 Resources:
   ##### Remediation API #####
-  GatewayApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      DefinitionBody: api/gateway/remediation/api.yml
-      EndpointConfiguration: REGIONAL
-      Name: panther-remediation-api
-      # <cfndoc>
-      # The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
-      # </cfndoc>
-      StageName: v1
-      TracingEnabled: !If [TracingEnabled, true, false]
+#  GatewayApi:
+#    Type: AWS::Serverless::Api
+#    Properties:
+#      DefinitionBody: api/gateway/remediation/api.yml
+#      EndpointConfiguration: REGIONAL
+#      Name: panther-remediation-api
+#      # <cfndoc>
+#      # The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
+#      # </cfndoc>
+#      StageName: v1
+#      TracingEnabled: !If [TracingEnabled, true, false]
 
   GatewayInvocationPermission: # allow API gateway to invoke the Lambda function
     Type: AWS::Lambda::Permission

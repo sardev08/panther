@@ -57,20 +57,20 @@ Conditions:
 
 Resources:
   ##### API Gateway #####
-  GatewayApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      DefinitionBody: api/gateway/resources/api.yml
-      EndpointConfiguration: REGIONAL
-      Name: panther-resources-api
-      # <cfndoc>
-      # The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
-      #
-      # Failure Impact
-      # * Failure of this API Gateway will prevent calls to the `panther-resources-api` lambda.
-      # </cfndoc>
-      StageName: v1 # NOTE: sam also builds a stage called "Stage"
-      TracingEnabled: !If [TracingEnabled, true, false]
+#  GatewayApi:
+#    Type: AWS::Serverless::Api
+#    Properties:
+#      DefinitionBody: api/gateway/resources/api.yml
+#      EndpointConfiguration: REGIONAL
+#      Name: panther-resources-api
+#      # <cfndoc>
+#      # The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
+#      #
+#      # Failure Impact
+#      # * Failure of this API Gateway will prevent calls to the `panther-resources-api` lambda.
+#      # </cfndoc>
+#      StageName: v1 # NOTE: sam also builds a stage called "Stage"
+#      TracingEnabled: !If [TracingEnabled, true, false]
 
   GatewayInvocationPermission: # allow API gateway to invoke the Lambda function
     Type: AWS::Lambda::Permission

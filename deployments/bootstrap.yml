@@ -59,8 +59,8 @@ Conditions:
 
 Resources:
   ########## S3 Buckets ##########
-  AccessLogsBucket:  # S3 access logging for all Panther buckets
-    Condition: CreateLogBucket
+  AuditBucket:  # S3 access logging for all Panther buckets
+    #Condition: CreateLogBucket
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
