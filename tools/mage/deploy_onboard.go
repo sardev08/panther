@@ -40,10 +40,11 @@ const (
 )
 
 // onboard Panther to monitor Panther account
-func deployOnboard(awsSession *session.Session, bucket string, backendOutputs map[string]string) {
-	deployCloudSecRoles(awsSession, bucket)
+func deployOnboard(awsSession *session.Session, bucketOutputs, backendOutputs map[string]string) {
+	deployCloudSecRoles(awsSession, bucketOutputs["SourceBucketName"])
 	registerPantherAccount(awsSession, backendOutputs["AWSAccountId"]) // this MUST follow the CloudSec roles being deployed
 	deployRealTimeStackSet(awsSession, backendOutputs["AWSAccountId"])
+	// configureLogProcessingS3Notifications(awsSession, bucketOutputs, backendOutputs)
 }
 
 func deployCloudSecRoles(awsSession *session.Session, bucket string) {
@@ -148,3 +149,26 @@ func deployRealTimeStackSet(awsSession *session.Session, pantherAccountID string
 		logger.Fatalf("error creating real time stack instance: %v", err)
 	}
 }
+
+/*
+func configureLogProcessingS3Notifications(awsSession *session.Session, bucketOutputs, backendOutputs map[string]string) {
+	// enable log processing on log bucket
+	s3Client:= s3.New(awsSession)
+	input := s3.PutBucketNotificationConfigurationInput{
+		Bucket:                   aws.String(bucketOutputs["LogBucketName"]),
+		NotificationConfiguration: &s3.NotificationConfiguration{
+			QueueConfigurations:          []*s3.QueueConfiguration{
+				{
+					Events: []*string{
+							aws.String(""),
+					},
+					Filter:   nil,
+					Id:       nil,
+					QueueArn: nil,
+				},
+			},
+		},
+	}
+
+}
+*/
