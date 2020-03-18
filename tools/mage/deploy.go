@@ -58,6 +58,8 @@ const (
 	glueTemplate    = "out/deployments/gluetables.json"
 	gatewayStack    = "panther-api-gateway"
 	gatewayTemplate = apiEmbeddedTemplate
+	monitoringStack = "panther-monitoring"
+	monitoringTemplate = "deployments/monitoring.yml"
 
 	// OLD ...
 	backendStack    = "panther-app"
@@ -103,10 +105,10 @@ var supportedRegions = map[string]bool{
 func Deploy() {
 	start := time.Now()
 
-	//settings, err := config.Settings()
-	//if err != nil {
-	//	logger.Fatalf("failed to read config file %s: %v", config.Filepath, err)
-	//}
+	settings, err := config.Settings()
+	if err != nil {
+		logger.Fatalf("failed to read config file %s: %v", config.Filepath, err)
+	}
 
 	awsSession, err := getSession()
 	if err != nil {
@@ -116,11 +118,9 @@ func Deploy() {
 	deployPrecheck(*awsSession.Config.Region)
 	logger.Infof("deploy: deploying Panther to %s", *awsSession.Config.Region)
 
-	// Stage 1 - bootstrap.yml, compile Lambda functions, generate CFN
 	outputs := bootstrapStage(awsSession)
 
-	source := outputs["SourceBucket"]
-	stackStuff := gatewayStage(awsSession, outputs["AthenaResultsBucket"], outputs["ProcessedDataBucket"], source)
+	stackStuff := gatewayStage(awsSession, settings, outputs)
 	fmt.Println(stackStuff)
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -198,7 +198,7 @@ func bootstrapStage(awsSession *session.Session) map[string]string {
 
 	go func() {
 		// TODO: proper parameters loaded from config file
-		params := map[string]string{"CertificateArn": "arn:aws:acm:us-east-1:101802775469:certificate/3eaac00a-09fd-469e-87d5-4620442e46b2"} //uploadLocalCertificate(awsSession)}
+		params := map[string]string{"CertificateArn": "arn:aws:acm:us-west-2:101802775469:certificate/6e51b91b-0d7d-4592-89a3-c113c78e3ab3"} //uploadLocalCertificate(awsSession)}
 		bootstrapOutputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
 		wg.Done()
 	}()
@@ -216,13 +216,20 @@ func bootstrapStage(awsSession *session.Session) map[string]string {
 //
 // In parallel: deploy api-gateway, glue tables, onboarding, frontend, monitoring
 // Returns a map from stack name => outputs
-func gatewayStage(awsSession *session.Session, athenaBucket, dataBucket, sourceBucket string) map[string]map[string]string {
+func gatewayStage(
+	awsSession *session.Session,
+	settings *config.PantherConfig,
+	bootstrapOutputs map[string]string,
+	) map[string]map[string]string {
+
 	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
 
 	// Keeping these separate variables prevents concurrency conflicts
-	var gatewayOutputs, glueOutputs map[string]string
+	var gatewayOutputs, glueOutputs, monitoringOutputs map[string]string
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
+
+	sourceBucket := bootstrapOutputs["SourceBucket"]
 
 	// API Gateway
 	go func() {
@@ -234,11 +241,12 @@ func gatewayStage(awsSession *session.Session, athenaBucket, dataBucket, sourceB
 
 	// Athena/Glue
 	go func() {
-		params := map[string]string{"ProcessedDataBucket": dataBucket}
+		params := map[string]string{"ProcessedDataBucket": bootstrapOutputs["ProcessedDataBucket"]}
 		glueOutputs = deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, params)
 
 		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
 		const workgroup = "primary"
+		athenaBucket := bootstrapOutputs["AthenaResultsBucket"]
 		if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
 			logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
 		}
@@ -249,11 +257,22 @@ func gatewayStage(awsSession *session.Session, athenaBucket, dataBucket, sourceB
 		wg.Done()
 	}()
 
-	wg.Wait()
+	// Monitoring
+	go func() {
+		params := map[string]string{
+			"AlarmTopicArn":        settings.MonitoringParameterValues.AlarmSNSTopicARN,
+			"AppsyncId":            bootstrapOutputs["GraphQLApiId"],
+			"LoadBalancerFullName": bootstrapOutputs["LoadBalancerFullName"],
+		}
+		monitoringOutputs = deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, params)
+		wg.Done()
+	}()
 
+	wg.Wait()
 	return map[string]map[string]string{
 		gatewayStack: gatewayOutputs,
 		glueStack:    glueOutputs,
+		monitoringStack: monitoringOutputs,
 	}
 }
 

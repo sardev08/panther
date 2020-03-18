@@ -173,7 +173,7 @@ func generateMetrics() error {
 
 	cf, err := cloudwatchcf.GenerateMetrics(cfDirs...)
 	if err != nil {
-		return fmt.Errorf("failed to generate alarms CloudFormation template: %v", err)
+		return fmt.Errorf("failed to generate metrics CloudFormation template: %v", err)
 	}
 
 	if _, err = metricsCfFile.Write(cf); err != nil {

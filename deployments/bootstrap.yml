@@ -17,8 +17,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: The very first Panther stack - static resources which don't require S3 for deployment
 
-# TODO - comment here about what's up
-
 Parameters:
   # Required
   CertificateArn:
@@ -26,7 +24,7 @@ Parameters:
     Description: The ARN of the TLS certificate that is going to be used by the ALB listener
 
   # Optional
-  AccessLogsBucketName:
+  AccessLogsBucket:
     Type: String
     Description: Optional bucket for storing S3 access logs. If not specified, one is created for you
     Default: ''
@@ -53,14 +51,13 @@ Mappings:
       CIDR: 10.0.0.64/26
 
 Conditions:
-  CreateLogBucket: !Equals [!Ref AccessLogsBucketName, '']
-  TracingEnabled: !Not [!Equals ['', !Ref TracingMode]]
+  ExternalAccessLogs: !Not [!Equals [!Ref AccessLogsBucket, '']]
+  TracingEnabled: !Not [!Equals [!Ref TracingMode, '']]
   UseCustomDomain: !Not [!Equals [!Ref CustomDomain, '']]
 
 Resources:
   ########## S3 Buckets ##########
-  AuditBucket: # S3 access logging for all Panther buckets
-    #Condition: CreateLogBucket
+  AuditLogs: # Panther self-auditing: S3 access logs, flow logs, etc
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -77,7 +74,11 @@ Resources:
             NoncurrentVersionExpirationInDays: 30
             Status: Enabled
       LoggingConfiguration:
-        LogFilePrefix: self/
+        DestinationBucketName: !If [ExternalAccessLogs, !Ref AccessLogsBucket, !Ref 'AWS::NoValue']
+        LogFilePrefix: !If
+          - ExternalAccessLogs
+          - !Sub panther-source-${AWS::AccountId}-${AWS::Region}/
+          - self/
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -86,7 +87,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  SourceBucket: # Staging bucket for CloudFormation to upload templates, Lambda source, etc
+  Source: # Staging bucket for CloudFormation to upload templates, Lambda source, etc
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -101,8 +102,7 @@ Resources:
           - ExpirationInDays: 90
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName:
-          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName: !If [ExternalAccessLogs, !Ref AccessLogsBucket, !Ref AuditLogs]
         LogFilePrefix: !Sub panther-source-${AWS::AccountId}-${AWS::Region}/
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -112,7 +112,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  AnalysisVersionsBucket: # analysis-api stores old python rule/policy versions here
+  AnalysisVersions: # analysis-api stores old python rule/policy versions here
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -126,8 +126,7 @@ Resources:
           - NoncurrentVersionExpirationInDays: 365
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName:
-          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName: !If [ExternalAccessLogs, !Ref AccessLogsBucket, !Ref AuditLogs]
         LogFilePrefix: !Sub panther-analysis-versions-${AWS::AccountId}-${AWS::Region}/
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -137,14 +136,13 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  ProcessedDataBucket: # processed security logs
+  ProcessedData: # processed security logs
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       LoggingConfiguration:
-        DestinationBucketName:
-          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName: !If [ExternalAccessLogs, !Ref AccessLogsBucket, !Ref AuditLogs]
         LogFilePrefix: !Sub panther-processed-data-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -159,7 +157,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  AthenaResultsBucket: # athena query results
+  AthenaResults: # athena query results
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -169,8 +167,7 @@ Resources:
           - ExpirationInDays: 30
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName:
-          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName: !If [ExternalAccessLogs, !Ref AccessLogsBucket, !Ref AuditLogs]
         LogFilePrefix: !Sub panther-athena-results-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -513,6 +510,7 @@ Resources:
       RetentionInDays: !Ref CloudWatchLogRetentionDays
 
   ########## KMS ##########
+  # TODO - KMS keys take a surprisingly long time to create, so we list all of them here
   QueueEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
@@ -550,23 +548,32 @@ Resources:
 Outputs:
   AnalysisVersionsBucket:
     Description: S3 bucket name for analysis-api versioning
-    Value: !Ref AnalysisVersionsBucket
+    Value: !Ref AnalysisVersions
   AthenaResultsBucket:
     Description: S3 bucket name for Athena results
-    Value: !Ref AthenaResultsBucket
+    Value: !Ref AthenaResults
   ProcessedDataBucket:
     Description: S3 bucket name for processed log data
-    Value: !Ref ProcessedDataBucket
+    Value: !Ref ProcessedData
   SourceBucket:
     Description: S3 bucket name for Panther CloudFormation packaging
-    Value: !Ref SourceBucket
+    Value: !Ref Source
 
   QueueEncryptionKeyId:
     Description: KMS key for encrypting Panther SQS queues
     Value: !Ref QueueEncryptionKey
+  LoadBalancerFullName:
+    Description: Web load balancer full resource name
+    Value: !GetAtt PublicLoadBalancer.LoadBalancerFullName
   LoadBalancerUrl:
-    Description: Panther URL (application load balancer)
+    Description: Panther URL - application load balancer or custom domain
     Value: !If [UseCustomDomain, !Ref CustomDomain, !GetAtt PublicLoadBalancer.DNSName]
+  GraphQLApiEndpoint:
+    Description: The URL to the Appsync GraphQL Endpoint
+    Value: !GetAtt GraphQLApi.GraphQLUrl
+  GraphQLApiId:
+    Description: The id of the Appsync GraphQL Endpoint
+    Value: !GetAtt GraphQLApi.ApiId
   UserPoolId:
     Description: Cognito user pool ID
     Value: !Ref UserPool
