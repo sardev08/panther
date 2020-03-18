@@ -54,11 +54,11 @@ const (
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
 
-	glueStack       = "panther-glue"
-	glueTemplate    = "out/deployments/gluetables.json"
-	gatewayStack    = "panther-api-gateway"
-	gatewayTemplate = apiEmbeddedTemplate
-	monitoringStack = "panther-monitoring"
+	glueStack          = "panther-glue"
+	glueTemplate       = "out/deployments/gluetables.json"
+	gatewayStack       = "panther-api-gateway"
+	gatewayTemplate    = apiEmbeddedTemplate
+	monitoringStack    = "panther-monitoring"
 	monitoringTemplate = "deployments/monitoring.yml"
 
 	// OLD ...
@@ -204,6 +204,7 @@ func bootstrapStage(awsSession *session.Session) map[string]string {
 	}()
 
 	go func() {
+		// TODO: swagger requires changing the working directory, which may not work well in parallel with ^
 		Build.All(Build{})
 		wg.Done()
 	}()
@@ -220,7 +221,7 @@ func gatewayStage(
 	awsSession *session.Session,
 	settings *config.PantherConfig,
 	bootstrapOutputs map[string]string,
-	) map[string]map[string]string {
+) map[string]map[string]string {
 
 	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
 
@@ -233,9 +234,8 @@ func gatewayStage(
 
 	// API Gateway
 	go func() {
-		// TODO: parameters
-		// TODO: fix name embedding
-		// gatewayOutputs = deployTemplate(awsSession, gatewayTemplate, sourceBucket, gatewayStack, nil)
+		// TODO: parameters (TracingEnabled)
+		gatewayOutputs = deployTemplate(awsSession, gatewayTemplate, sourceBucket, gatewayStack, nil)
 		wg.Done()
 	}()
 
@@ -270,8 +270,8 @@ func gatewayStage(
 
 	wg.Wait()
 	return map[string]map[string]string{
-		gatewayStack: gatewayOutputs,
-		glueStack:    glueOutputs,
+		gatewayStack:    gatewayOutputs,
+		glueStack:       glueOutputs,
 		monitoringStack: monitoringOutputs,
 	}
 }

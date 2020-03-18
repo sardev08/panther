@@ -33,7 +33,7 @@ const (
 	apiTemplate         = "deployments/api_gateway.yml"
 	apiEmbeddedTemplate = "out/deployments/embedded.api_gateway.yml"
 
-	pantherLambdaKey = "x-panther-lambda-cfn-resource" // top-level key in Swagger file
+	pantherLambdaKey = "x-panther-lambda-handler" // top-level key in Swagger file
 	space8           = "        "
 )
 
@@ -107,8 +107,8 @@ func loadSwagger(filename string) (*string, error) {
 		},
 	}
 
-	functionResource := apiBody[pantherLambdaKey].(string)
-	if functionResource == "" {
+	handlerFunction := apiBody[pantherLambdaKey].(string)
+	if handlerFunction == "" {
 		return nil, fmt.Errorf("%s must be defined in swagger file %s", pantherLambdaKey, filename)
 	}
 	delete(apiBody, pantherLambdaKey)
@@ -126,7 +126,7 @@ func loadSwagger(filename string) (*string, error) {
 						"arn:aws:apigateway:${AWS::Region}:lambda:path",
 						"2015-03-31",
 						"functions",
-						"arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${" + functionResource + "}",
+						"arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:" + handlerFunction,
 						"invocations",
 					}, "/"),
 				},
