@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	apiTemplate = "deployments/api_gateway.yml"
+	apiTemplate         = "deployments/api_gateway.yml"
 	apiEmbeddedTemplate = "out/deployments/embedded.api_gateway.yml"
 
 	pantherLambdaKey = "x-panther-lambda-cfn-resource" // top-level key in Swagger file

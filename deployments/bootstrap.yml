@@ -59,7 +59,7 @@ Conditions:
 
 Resources:
   ########## S3 Buckets ##########
-  AuditBucket:  # S3 access logging for all Panther buckets
+  AuditBucket: # S3 access logging for all Panther buckets
     #Condition: CreateLogBucket
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -86,7 +86,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  SourceBucket:  # Staging bucket for CloudFormation to upload templates, Lambda source, etc
+  SourceBucket: # Staging bucket for CloudFormation to upload templates, Lambda source, etc
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -101,7 +101,8 @@ Resources:
           - ExpirationInDays: 90
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName:
+          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
         LogFilePrefix: !Sub panther-source-${AWS::AccountId}-${AWS::Region}/
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -111,7 +112,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  AnalysisVersionsBucket:  # analysis-api stores old python rule/policy versions here
+  AnalysisVersionsBucket: # analysis-api stores old python rule/policy versions here
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -125,7 +126,8 @@ Resources:
           - NoncurrentVersionExpirationInDays: 365
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName:
+          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
         LogFilePrefix: !Sub panther-analysis-versions-${AWS::AccountId}-${AWS::Region}/
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -135,13 +137,14 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  ProcessedDataBucket:  # processed security logs
+  ProcessedDataBucket: # processed security logs
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       LoggingConfiguration:
-        DestinationBucketName: !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName:
+          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
         LogFilePrefix: !Sub panther-processed-data-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -156,7 +159,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  AthenaResultsBucket:  # athena query results
+  AthenaResultsBucket: # athena query results
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
@@ -166,7 +169,8 @@ Resources:
           - ExpirationInDays: 30
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
+        DestinationBucketName:
+          !If [CreateLogBucket, !Ref AccessLogsBucket, !Ref AccessLogsBucketName]
         LogFilePrefix: !Sub panther-athena-results-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -204,11 +208,12 @@ Resources:
               <br />Panther - https://runpanther.io
               <br />
               <br /><small>Copyright © 2020 Panther Labs Inc. All rights reserved.</small>
-            - PantherHost: !If [UseCustomDomain, !Ref CustomDomain, !GetAtt PublicLoadBalancer.DNSName]
+            - PantherHost:
+                !If [UseCustomDomain, !Ref CustomDomain, !GetAtt PublicLoadBalancer.DNSName]
       AutoVerifiedAttributes:
         - email
       LambdaConfig:
-        CustomMessage: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-cognito-custom-message-trigger
+        CustomMessage: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-users-api
       Policies:
         PasswordPolicy:
           MinimumLength: 12
@@ -218,16 +223,13 @@ Resources:
           RequireUppercase: true
       Schema:
         - AttributeDataType: String
-          DeveloperOnlyAttribute: false
           Mutable: true
           Name: email
           Required: true
         - AttributeDataType: String
-          DeveloperOnlyAttribute: false
           Mutable: true
           Name: given_name
         - AttributeDataType: String
-          DeveloperOnlyAttribute: false
           Mutable: true
           Name: family_name
       UsernameAttributes:

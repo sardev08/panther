@@ -142,7 +142,7 @@ func createChangeSet(
 	client *cloudformation.CloudFormation,
 	templateFile, bucket, stack string,
 	params map[string]string,
-	) (*string, map[string]string) {
+) (*string, map[string]string) {
 
 	// Change set type - CREATE if a new stack otherwise UPDATE
 	stackDetail, err := client.DescribeStacks(&cloudformation.DescribeStacksInput{StackName: &stack})

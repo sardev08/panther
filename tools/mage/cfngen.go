@@ -27,6 +27,7 @@ import (
 	"github.com/panther-labs/panther/tools/cfndoc"
 	"github.com/panther-labs/panther/tools/cfngen/cloudwatchcf"
 	"github.com/panther-labs/panther/tools/cfngen/gluecf"
+	"github.com/panther-labs/panther/tools/config"
 	"github.com/panther-labs/panther/tools/dashboards"
 )
 
@@ -68,8 +69,8 @@ func generateGlueTables() error {
 }
 
 // Generate CloudWatch dashboards as CloudFormation
-func generateDashboards(awsRegion string) error {
-	outDir := filepath.Join("out", "deployments", "cloudwatch")
+func generateDashboards() error {
+	outDir := filepath.Join("out", "deployments", "monitoring")
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %v", outDir, err)
 	}
@@ -81,7 +82,7 @@ func generateDashboards(awsRegion string) error {
 	}
 	defer dashboardsCfFile.Close()
 
-	dashboardResources := dashboards.Dashboards(awsRegion)
+	dashboardResources := dashboards.Dashboards()
 	logger.Debugf("deploy: cfngen: loaded %d dashboards", len(dashboardResources))
 	cf, err := cloudwatchcf.GenerateDashboards(dashboardResources)
 	if err != nil {
@@ -95,7 +96,7 @@ func generateDashboards(awsRegion string) error {
 }
 
 // Generate CloudWatch alarms as CloudFormation
-func generateAlarms(snsTopicArn string, stackOutputs map[string]string) error {
+func generateAlarms(settings *config.PantherConfig) error {
 	var alarms []*cloudwatchcf.Alarm
 
 	outDir := filepath.Join("out", "deployments", "monitoring")
@@ -110,7 +111,7 @@ func generateAlarms(snsTopicArn string, stackOutputs map[string]string) error {
 		alarmsCfFilePath := filepath.Join(outDir, alarmsCfBasename) // where we will write
 
 		// generate alarms
-		fileAlarms, cf, err := cloudwatchcf.GenerateAlarms(snsTopicArn, stackOutputs, cfDir)
+		fileAlarms, cf, err := cloudwatchcf.GenerateAlarms(cfDir, settings)
 		if err != nil {
 			return fmt.Errorf("failed to generate alarms CloudFormation template %s: %v", alarmsCfFilePath, err)
 		}
@@ -158,7 +159,7 @@ func resourceDocumentation() (resourceLookup map[string]struct{}) {
 
 // Generate CloudWatch metrics as CloudFormation
 func generateMetrics() error {
-	outDir := filepath.Join("out", "deployments", "cloudwatch")
+	outDir := filepath.Join("out", "deployments", "monitoring")
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %v", outDir, err)
 	}

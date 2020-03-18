@@ -43,20 +43,20 @@ Conditions:
   TracingEnabled: !Not [!Equals ['', !Ref TracingMode]]
 
 Resources:
-#  GatewayApi:
-#    Type: AWS::Serverless::Api
-#    Properties:
-#      DefinitionBody: api/gateway/compliance/api.yml
-#      EndpointConfiguration: REGIONAL
-#      Name: panther-compliance-api
-#      # <cfndoc>
-#      # The `panther-compliance-api` API Gateway calls the `panther-compliance-api` lambda.
-#      #
-#      # Failure Impact
-#      # * Failure of this API Gateway will prevent calls to the `panther-compliance-api` lambda.
-#      # </cfndoc>
-#      StageName: v1 # NOTE: sam also builds a stage called "Stage"
-#      TracingEnabled: !If [TracingEnabled, true, false]
+  #  GatewayApi:
+  #    Type: AWS::Serverless::Api
+  #    Properties:
+  #      DefinitionBody: api/gateway/compliance/api.yml
+  #      EndpointConfiguration: REGIONAL
+  #      Name: panther-compliance-api
+  #      # <cfndoc>
+  #      # The `panther-compliance-api` API Gateway calls the `panther-compliance-api` lambda.
+  #      #
+  #      # Failure Impact
+  #      # * Failure of this API Gateway will prevent calls to the `panther-compliance-api` lambda.
+  #      # </cfndoc>
+  #      StageName: v1 # NOTE: sam also builds a stage called "Stage"
+  #      TracingEnabled: !If [TracingEnabled, true, false]
 
   Function:
     Type: AWS::Serverless::Function
