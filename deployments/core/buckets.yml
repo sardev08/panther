@@ -27,6 +27,7 @@ Conditions:
   CreateLogBucket: !Equals [!Ref AccessLogsBucketName, '']
 
 Resources:
+  # @austin please change resource name to AuditLogs so bucket name is more generic when you refactor
   AccessLogs:
     Condition: CreateLogBucket
     Type: AWS::S3::Bucket

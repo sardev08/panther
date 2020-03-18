@@ -19,11 +19,15 @@ package mage
  */
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/panther-labs/panther/api/lambda/source/models"
 )
@@ -41,13 +45,12 @@ const (
 
 // onboard Panther to monitor Panther account
 func deployOnboard(awsSession *session.Session, bucketOutputs, backendOutputs map[string]string) {
-	deployCloudSecRoles(awsSession, bucketOutputs["SourceBucketName"])
+	deployOnboardTemplate(awsSession, bucketOutputs)
 	registerPantherAccount(awsSession, backendOutputs["AWSAccountId"]) // this MUST follow the CloudSec roles being deployed
 	deployRealTimeStackSet(awsSession, backendOutputs["AWSAccountId"])
-	// configureLogProcessingS3Notifications(awsSession, bucketOutputs, backendOutputs)
 }
 
-func deployCloudSecRoles(awsSession *session.Session, bucket string) {
+func deployOnboardTemplate(awsSession *session.Session, bucketOutputs map[string]string) {
 	iamClient := iam.New(awsSession)
 	auditRoleExists, err := roleExists(iamClient, auditRole)
 	if err != nil {
@@ -62,17 +65,15 @@ func deployCloudSecRoles(awsSession *session.Session, bucket string) {
 		logger.Fatalf("error checking admin role name %s: %v", realTimeEventsAdministrationRoleName, err)
 	}
 
-	if !auditRoleExists && !remediationRoleExists && !adminRoleExists {
-		logger.Info("deploy: creating iam roles for CloudSecurity")
-		params := map[string]string{} // currently none
-		deployTemplate(awsSession, onboardTemplate, bucket, onboardStack, params)
-	} else {
-		logger.Info("deploy: iam roles for CloudSecurity exist (not creating)")
+	params := map[string]string{
+		"CreateRoles": strconv.FormatBool(!auditRoleExists && !remediationRoleExists && !adminRoleExists),
 	}
+	onboardOutputs := deployTemplate(awsSession, onboardTemplate, bucketOutputs["SourceBucketName"], onboardStack, params)
+	configureLogProcessingS3Notifications(awsSession, bucketOutputs, onboardOutputs)
 }
 
 func registerPantherAccount(awsSession *session.Session, pantherAccountID string) {
-	logger.Infof("deploy: registering account %s with Panther", pantherAccountID)
+	logger.Infof("deploy: registering account %s with Panther for monitoring", pantherAccountID)
 	var apiInput = struct {
 		PutIntegration *models.PutIntegrationInput
 	}{
@@ -85,10 +86,16 @@ func registerPantherAccount(awsSession *session.Session, pantherAccountID string
 					ScanIntervalMins: aws.Int(1440),
 					UserID:           aws.String(mageUserID),
 				},
+				{
+					AWSAccountID:     aws.String(pantherAccountID),
+					IntegrationLabel: aws.String("Panther Account"),
+					IntegrationType:  aws.String(models.IntegrationTypeAWS3),
+					UserID:           aws.String(mageUserID),
+				},
 			},
 		},
 	}
-	if err := invokeLambda(awsSession, "panther-source-api", apiInput, nil); err != nil {
+	if err := invokeLambda(awsSession, "panther-source-api", apiInput, nil); err != nil && !strings.Contains(err.Error(), "already exists") {
 		logger.Fatalf("error calling lambda to register account: %v", err)
 	}
 }
@@ -149,25 +156,26 @@ func deployRealTimeStackSet(awsSession *session.Session, pantherAccountID string
 	}
 }
 
-/*
-func configureLogProcessingS3Notifications(awsSession *session.Session, bucketOutputs, backendOutputs map[string]string) {
-	// enable log processing on log bucket
-	s3Client:= s3.New(awsSession)
-	input := s3.PutBucketNotificationConfigurationInput{
-		Bucket:                   aws.String(bucketOutputs["LogBucketName"]),
+func configureLogProcessingS3Notifications(awsSession *session.Session, bucketOutputs, onboardOutputs map[string]string) {
+	topicArn := onboardOutputs["LogProcessingTopicArn"]
+	logBucket := bucketOutputs["LogBucketName"]
+	// configure notifications on the bucket
+	s3Client := s3.New(awsSession)
+	input := &s3.PutBucketNotificationConfigurationInput{
+		Bucket: aws.String(logBucket),
 		NotificationConfiguration: &s3.NotificationConfiguration{
-			QueueConfigurations:          []*s3.QueueConfiguration{
+			TopicConfigurations: []*s3.TopicConfiguration{
 				{
 					Events: []*string{
-							aws.String(""),
+						aws.String(s3.EventS3ObjectCreated),
 					},
-					Filter:   nil,
-					Id:       nil,
-					QueueArn: nil,
+					TopicArn: &topicArn,
 				},
 			},
 		},
 	}
-
+	_, err := s3Client.PutBucketNotificationConfiguration(input)
+	if err != nil {
+		logger.Fatalf("failed to add s3 notifications to %s from %s: %v", logBucket, topicArn, err)
+	}
 }
-*/

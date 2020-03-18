@@ -53,9 +53,9 @@ Parameters:
     Default: ''
 
   # Set automatically by "mage deploy"
-  S3BucketAccessLogs:
+  S3BucketAccessLogs: # FIXME: change to AuditLogsBucket
     Type: String
-    Description: The name of the S3 bucket which stores access logs
+    Description: The name of the S3 bucket which stores Panther audit logs
   S3BucketSource:
     Type: String
     Description: The name of the S3 bucket storing deployment artifacts
@@ -177,6 +177,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
+        AuditLogsBucket: !Ref S3BucketAccessLogs
         VpcId: !GetAtt WebApplicationNetworking.Outputs.VpcId
         SubnetOneId: !GetAtt WebApplicationNetworking.Outputs.SubnetOneId
         SubnetTwoId: !GetAtt WebApplicationNetworking.Outputs.SubnetTwoId
