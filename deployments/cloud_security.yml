@@ -16,7 +16,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Resources specific to the cloud security product
+Description: Cloud security resource scanning
 
 Parameters:
   # Passed in from bootstrap outputs
