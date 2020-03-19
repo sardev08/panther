@@ -30,8 +30,8 @@ import (
 )
 
 const (
-	apiTemplate         = "deployments/api_gateway.yml"
-	apiEmbeddedTemplate = "out/deployments/embedded.api_gateway.yml"
+	apiTemplate         = "deployments/bootstrap2.yml"
+	apiEmbeddedTemplate = "out/deployments/embedded.bootstrap2.yml"
 
 	pantherLambdaKey = "x-panther-lambda-handler" // top-level key in Swagger file
 	space8           = "        "

@@ -54,7 +54,7 @@ const (
 	// CloudFormation templates + stacks
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
-	gatewayStack       = "panther-api-gateway"
+	gatewayStack       = "panther-bootstrap2"
 	gatewayTemplate    = apiEmbeddedTemplate
 
 	appsyncStack    = "panther-appsync"

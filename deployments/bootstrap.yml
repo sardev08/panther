@@ -604,7 +604,12 @@ Outputs:
     Description: Cognito user pool client ID
     Value: !Ref AppClient
 
-  # SQS
+  # KMS
   QueueEncryptionKeyId:
     Description: KMS key for encrypting Panther SQS queues
     Value: !Ref QueueEncryptionKey
+
+  # SNS
+  ProcessedDataTopicArn:
+    Description: SNS topic ARN for processed log data notifications
+    Value: !Ref ProcessedDataNotifications
