@@ -90,51 +90,51 @@ Conditions:
   UseCustomDomain: !Not [!Equals [!Ref CustomDomain, '']]
 
 Resources:
-  GatewayLoggingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Description: API Gateway uses this role to publish logs to CloudWatch
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: apigateway.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+  #  GatewayLoggingRole:
+  #    Type: AWS::IAM::Role
+  #    Properties:
+  #      Description: API Gateway uses this role to publish logs to CloudWatch
+  #      AssumeRolePolicyDocument:
+  #        Version: 2012-10-17
+  #        Statement:
+  #          - Effect: Allow
+  #            Principal:
+  #              Service: apigateway.amazonaws.com
+  #            Action: sts:AssumeRole
+  #      ManagedPolicyArns:
+  #        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+  #
+  #  GatewayAccount:
+  #    Type: AWS::ApiGateway::Account
+  #    Properties:
+  #      CloudWatchRoleArn: !GetAtt GatewayLoggingRole.Arn
 
-  GatewayAccount:
-    Type: AWS::ApiGateway::Account
-    Properties:
-      CloudWatchRoleArn: !GetAtt GatewayLoggingRole.Arn
-
-  QueueEncryptionKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: Encryption key for all panther SQS queues
-      EnableKeyRotation: true
-      KeyPolicy:
-        # Allow account root user to administer key (required)
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
-            Action: kms:*
-            Resource: '*'
-          - Effect: Allow
-            Principal:
-              Service: sns.amazonaws.com
-            Action:
-              - kms:GenerateDataKey
-              - kms:Decrypt
-            Resource: '*'
-
-  QueueEncryptionKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: alias/panther-sqs
-      TargetKeyId: !Ref QueueEncryptionKey
+  #  QueueEncryptionKey:
+  #    Type: AWS::KMS::Key
+  #    Properties:
+  #      Description: Encryption key for all panther SQS queues
+  #      EnableKeyRotation: true
+  #      KeyPolicy:
+  #        # Allow account root user to administer key (required)
+  #        Statement:
+  #          - Effect: Allow
+  #            Principal:
+  #              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+  #            Action: kms:*
+  #            Resource: '*'
+  #          - Effect: Allow
+  #            Principal:
+  #              Service: sns.amazonaws.com
+  #            Action:
+  #              - kms:GenerateDataKey
+  #              - kms:Decrypt
+  #            Resource: '*'
+  #
+  #  QueueEncryptionKeyAlias:
+  #    Type: AWS::KMS::Alias
+  #    Properties:
+  #      AliasName: alias/panther-sqs
+  #      TargetKeyId: !Ref QueueEncryptionKey
 
   PythonLayer:
     Condition: CreatePythonLayer
@@ -151,30 +151,30 @@ Resources:
       LayerName: panther-analysis
 
   ##### Nested Stacks: Core Infra #####
-  WebApplicationCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: panther-web-cluster
-
-  WebApplicationNetworking:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: web/networking.yml
-
-  WebApplicationLoadBalancer:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        VpcId: !GetAtt WebApplicationNetworking.Outputs.VpcId
-        SubnetOneId: !GetAtt WebApplicationNetworking.Outputs.SubnetOneId
-        SubnetTwoId: !GetAtt WebApplicationNetworking.Outputs.SubnetTwoId
-        CertificateArn: !Ref WebApplicationCertificateArn
-      TemplateURL: web/alb.yml
-
-  WebApplicationImageRepository:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: web/ecr.yml
+  #  WebApplicationCluster:
+  #    Type: AWS::ECS::Cluster
+  #    Properties:
+  #      ClusterName: panther-web-cluster
+  #
+  #  WebApplicationNetworking:
+  #    Type: AWS::CloudFormation::Stack
+  #    Properties:
+  #      TemplateURL: web/networking.yml
+  #
+  #  WebApplicationLoadBalancer:
+  #    Type: AWS::CloudFormation::Stack
+  #    Properties:
+  #      Parameters:
+  #        VpcId: !GetAtt WebApplicationNetworking.Outputs.VpcId
+  #        SubnetOneId: !GetAtt WebApplicationNetworking.Outputs.SubnetOneId
+  #        SubnetTwoId: !GetAtt WebApplicationNetworking.Outputs.SubnetTwoId
+  #        CertificateArn: !Ref WebApplicationCertificateArn
+  #      TemplateURL: web/alb.yml
+  #
+  #  WebApplicationImageRepository:
+  #    Type: AWS::CloudFormation::Stack
+  #    Properties:
+  #      TemplateURL: web/ecr.yml
 
   SourceApi:
     Type: AWS::CloudFormation::Stack
@@ -236,17 +236,17 @@ Resources:
         UserPoolId: !GetAtt Cognito.Outputs.UserPoolId
       TemplateURL: core/admin_api.yml
 
-  Cognito:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        PantherHost:
-          !If [
-            UseCustomDomain,
-            !Ref CustomDomain,
-            !GetAtt WebApplicationLoadBalancer.Outputs.LoadBalancerUrl,
-          ]
-      TemplateURL: core/cognito.yml
+  #  Cognito:
+  #    Type: AWS::CloudFormation::Stack
+  #    Properties:
+  #      Parameters:
+  #        PantherHost:
+  #          !If [
+  #            UseCustomDomain,
+  #            !Ref CustomDomain,
+  #            !GetAtt WebApplicationLoadBalancer.Outputs.LoadBalancerUrl,
+  #          ]
+  #      TemplateURL: core/cognito.yml
 
   Appsync:
     Type: AWS::CloudFormation::Stack
@@ -352,26 +352,26 @@ Resources:
       TopicName: panther-processed-data-notifications
       KmsMasterKeyId: !Ref QueueEncryptionKey
 
-  ProcessedData:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      LoggingConfiguration:
-        DestinationBucketName: !Ref S3BucketAccessLogs
-        LogFilePrefix: !Sub panther-processed-data-${AWS::AccountId}-${AWS::Region}/
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      AccessControl: Private
-      VersioningConfiguration:
-        Status: Enabled
+  #  ProcessedData:
+  #    Type: AWS::S3::Bucket
+  #    DeletionPolicy: Retain
+  #    UpdateReplacePolicy: Retain
+  #    Properties:
+  #      LoggingConfiguration:
+  #        DestinationBucketName: !Ref S3BucketAccessLogs
+  #        LogFilePrefix: !Sub panther-processed-data-${AWS::AccountId}-${AWS::Region}/
+  #      BucketEncryption:
+  #        ServerSideEncryptionConfiguration:
+  #          - ServerSideEncryptionByDefault:
+  #              SSEAlgorithm: AES256
+  #      PublicAccessBlockConfiguration:
+  #        BlockPublicAcls: true
+  #        BlockPublicPolicy: true
+  #        IgnorePublicAcls: true
+  #        RestrictPublicBuckets: true
+  #      AccessControl: Private
+  #      VersioningConfiguration:
+  #        Status: Enabled
 
   LogProcessor:
     Type: AWS::CloudFormation::Stack
@@ -418,30 +418,30 @@ Resources:
         PythonLayerArn: !If [CreatePythonLayer, !Ref PythonLayer, !Ref PythonLayerVersionArn]
       TemplateURL: log_analysis/rules_engine.yml
 
-  AthenaResults:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      LifecycleConfiguration:
-        Rules:
-          - ExpirationInDays: 30
-            Status: Enabled
-      LoggingConfiguration:
-        DestinationBucketName: !Ref S3BucketAccessLogs
-        LogFilePrefix: !Sub panther-athena-results-${AWS::AccountId}-${AWS::Region}/
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      AccessControl: Private
-      VersioningConfiguration:
-        Status: Enabled
+#  AthenaResults:
+#    Type: AWS::S3::Bucket
+#    DeletionPolicy: Retain
+#    UpdateReplacePolicy: Retain
+#    Properties:
+#      LifecycleConfiguration:
+#        Rules:
+#          - ExpirationInDays: 30
+#            Status: Enabled
+#      LoggingConfiguration:
+#        DestinationBucketName: !Ref S3BucketAccessLogs
+#        LogFilePrefix: !Sub panther-athena-results-${AWS::AccountId}-${AWS::Region}/
+#      BucketEncryption:
+#        ServerSideEncryptionConfiguration:
+#          - ServerSideEncryptionByDefault:
+#              SSEAlgorithm: AES256
+#      PublicAccessBlockConfiguration:
+#        BlockPublicAcls: true
+#        BlockPublicPolicy: true
+#        IgnorePublicAcls: true
+#        RestrictPublicBuckets: true
+#      AccessControl: Private
+#      VersioningConfiguration:
+#        Status: Enabled
 
 Outputs:
   AnalysisVersionsBucket:

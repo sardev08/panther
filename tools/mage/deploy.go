@@ -54,16 +54,17 @@ const (
 	// CloudFormation templates + stacks
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
-
-	glueStack          = "panther-glue"
-	glueTemplate       = "out/deployments/gluetables.json"
 	gatewayStack       = "panther-api-gateway"
 	gatewayTemplate    = apiEmbeddedTemplate
-	monitoringStack    = "panther-monitoring"
-	monitoringTemplate = "deployments/monitoring.yml"
 
 	appsyncStack    = "panther-appsync"
 	appsyncTemplate = "deployments/appsync.yml"
+	coreStack = "panther-core"
+	coreTemplate = "deployments/core.yml"
+	glueStack          = "panther-glue"
+	glueTemplate       = "out/deployments/gluetables.json"
+	monitoringStack    = "panther-monitoring"
+	monitoringTemplate = "deployments/monitoring.yml"
 
 	// OLD ...
 	backendStack    = "panther-app"
@@ -225,7 +226,7 @@ func deployMainStacks(
 	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
 
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 
 	sourceBucket := bootstrapOutputs["SourceBucket"]
 
@@ -238,6 +239,20 @@ func deployMainStacks(
 			"ComplianceApi":  gatewayOutputs["ComplianceApiEndpoint"],
 			"RemediationApi": gatewayOutputs["RemediationApiEndpoint"],
 			"ResourcesApi":   gatewayOutputs["ResourcesApiEndpoint"],
+		})
+		wg.Done()
+	}()
+
+	// Core
+	go func() {
+		deployTemplate(awsSession, coreTemplate, sourceBucket, coreStack, map[string]string{
+			"AppDomainURL": bootstrapOutputs["LoadBalancerUrl"],
+			"AnalysisVersionsBucket": bootstrapOutputs["AnalysisVersionsBucket"],
+			"AnalysisApiId": gatewayOutputs["AnalysisApiId"],
+			"ComplianceApiId": gatewayOutputs["ComplianceApiId"],
+			"SqsKeyId": bootstrapOutputs["QueueEncryptionKeyId"],
+			"UserPoolId": bootstrapOutputs["UserPoolId"],
+			// TODO: optional params from config file
 		})
 		wg.Done()
 	}()

@@ -510,6 +510,7 @@ Resources:
 
   ########## KMS ##########
   # TODO - KMS keys take a surprisingly long time to create, so we list all of them here
+  # Outputs encryption
   QueueEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
