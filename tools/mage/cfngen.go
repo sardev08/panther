@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/registry"
 	"github.com/panther-labs/panther/tools/cfndoc"
@@ -104,20 +105,25 @@ func generateAlarms(settings *config.PantherConfig) error {
 		return fmt.Errorf("failed to create directory %s: %v", outDir, err)
 	}
 
-	// loop over deployment CF dirs generating alarms for each
-	for _, cfDir := range cfDirs {
-		logger.Debugf("generating alarm cloudformation for %s", cfDir)
-		alarmsCfBasename := filepath.Base(cfDir) + "_alarms.json"
+	// loop over deployment CF files generating alarms for each
+	for _, cfFile := range cfnFiles() {
+		logger.Debugf("generating alarm cloudformation for %s", cfFile)
+		alarmsCfBasename := strings.TrimSuffix(filepath.Base(cfFile), ".yml") + "_alarms.json"
 		alarmsCfFilePath := filepath.Join(outDir, alarmsCfBasename) // where we will write
 
 		// generate alarms
-		fileAlarms, cf, err := cloudwatchcf.GenerateAlarms(cfDir, settings)
+		fileAlarms, cf, err := cloudwatchcf.GenerateAlarms(settings, cfFile)
 		if err != nil {
 			return fmt.Errorf("failed to generate alarms CloudFormation template %s: %v", alarmsCfFilePath, err)
 		}
+		if len(fileAlarms) == 0 {
+			logger.Debugf("no alarms for %s", cfFile)
+			continue
+		}
+
 		alarms = append(alarms, fileAlarms...) // save for validation
 
-		// write cf to file referenced in master template
+		// write cf to file
 		alarmsCfFile, err := os.Create(alarmsCfFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to create file %s: %v", alarmsCfFilePath, err)
@@ -146,7 +152,7 @@ func generateAlarms(settings *config.PantherConfig) error {
 
 // return a map to look up if a resource has associated cfndoc documentation
 func resourceDocumentation() (resourceLookup map[string]struct{}) {
-	docs, err := cfndoc.ReadDirs(cfDirs...)
+	docs, err := cfndoc.ReadCfn(cfnFiles()...)
 	if err != nil {
 		logger.Fatalf("failed to generate operational documentation: %v", err)
 	}
@@ -171,7 +177,7 @@ func generateMetrics() error {
 	}
 	defer metricsCfFile.Close()
 
-	cf, err := cloudwatchcf.GenerateMetrics(cfDirs...)
+	cf, err := cloudwatchcf.GenerateMetrics(cfnFiles()...)
 	if err != nil {
 		return fmt.Errorf("failed to generate metrics CloudFormation template: %v", err)
 	}

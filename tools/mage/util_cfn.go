@@ -20,12 +20,15 @@ package mage
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
+
+	"github.com/panther-labs/panther/tools/config"
 )
 
 var allStacks = []string{
@@ -66,6 +69,23 @@ func flattenStackOutputs(detail *cfn.DescribeStacksOutput) map[string]string {
 	result := make(map[string]string, len(outputs))
 	for _, output := range outputs {
 		result[*output.OutputKey] = *output.OutputValue
+	}
+	return result
+}
+
+// Return the list of Panther's CloudFormation files
+func cfnFiles() []string {
+	paths, err := filepath.Glob("deployments/*.yml")
+	if err != nil {
+		logger.Fatalf("failed to glob deployments: %v", err)
+	}
+
+	// Remove the config file
+	var result []string
+	for _, p := range paths {
+		if p != config.Filepath {
+			result = append(result, p)
+		}
 	}
 	return result
 }

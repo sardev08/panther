@@ -40,10 +40,10 @@ Resources:
     Properties:
       TemplateURL: ../out/deployments/monitoring/dashboards.json
 
-  #  Metrics:
-  #    Type: AWS::CloudFormation::Stack
-  #    Properties:
-  #      TemplateURL: ../out/deployments/monitoring/metrics.json
+  Metrics:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ../out/deployments/monitoring/metrics.json
 
   # Alarms
   AlarmNotifications:
@@ -51,41 +51,53 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: panther-alarms
+      # <cfndoc>
+      # CloudWatch alarms are configured to notify this topic
+      #
+      # Failure Impact
+      # * CloudWatch alarm notifications will not be delivered to subscribers
+      # </cfndoc>
 
-  # TODO - re-add alarms once the stacks are reorganized
-#  ComplianceAlarms:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      Parameters:
-#        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
-#      TemplateURL: ../out/deployments/monitoring/compliance_alarms.json
-#
-#  CoreAlarms:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      Parameters:
-#        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
-#        AppsyncId: !Ref AppsyncId
-#      TemplateURL: ../out/deployments/monitoring/core_alarms.json
-#
-#  LogAnalysisAlarms:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      Parameters:
-#        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
-#      TemplateURL: ../out/deployments/monitoring/log_analysis_alarms.json
-#
-#  WebAlarms:
-#    Type: AWS::CloudFormation::Stack
-#    Properties:
-#      Parameters:
-#        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
-#        LoadBalancerFullName: !Ref LoadBalancerFullName
-#      TemplateURL: ../out/deployments/monitoring/web_alarms.json
+  BootstrapAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+        AppsyncId: !Ref AppsyncId
+        LoadBalancerFullName: !Ref LoadBalancerFullName
+      TemplateURL: ../out/deployments/monitoring/bootstrap_alarms.json
 
-# TODO - temp - these are just so the outputs get used
-Outputs:
-  AppsyncId:
-    Value: !Ref AppsyncId
-  LoadBalancerFullName:
-    Value: !Ref LoadBalancerFullName
+  GatewayAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+      TemplateURL: ../out/deployments/monitoring/bootstrap2_alarms.json
+
+  CloudSecurityAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+      TemplateURL: ../out/deployments/monitoring/cloud_security_alarms.json
+
+  CoreAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+      TemplateURL: ../out/deployments/monitoring/core_alarms.json
+
+  LogAnalysisAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+      TemplateURL: ../out/deployments/monitoring/log_analysis_alarms.json
+
+  MonitoringAlarms:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
+      TemplateURL: ../out/deployments/monitoring/monitoring_alarms.json

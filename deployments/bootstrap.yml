@@ -561,6 +561,9 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: panther-processed-data-notifications
+      # <cfndoc>
+      # This topic triggers the log analysis flow
+      # </cfndoc>
       KmsMasterKeyId: !Ref QueueEncryptionKey
 
 Outputs:

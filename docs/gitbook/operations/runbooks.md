@@ -13,6 +13,12 @@ Resource names below refer to resources in the Cloud Formation templates in Pant
 
 Each resource describes its function and failure impacts.
 
+## panther-alarms
+CloudWatch alarms are configured to notify this topic
+
+ Failure Impact
+ * CloudWatch alarm notifications will not be delivered to subscribers
+
 ## panther-alert-delivery
 This lambda dispatches alerts to their specified outputs (destinations).
 
@@ -251,6 +257,9 @@ This lambda executes the user-defined policies against infrastructure events.
  Failure Impact
  * Failure of this lambda will impact evaluating policies.
 
+## panther-processed-data-notifications
+This topic triggers the log analysis flow
+
 ## panther-remediation-api
 The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
 
@@ -300,14 +309,14 @@ This table holds descriptions of the AWS resources in all accounts being monitor
  * The Panther user interface could be impacted.
 
 ## panther-resources-api
-The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
-
-## panther-resources-api
 The `panther-resources-api` lambda implements the resources API.
 
  Failure Impact
  * Infrastructure scans may be impacted when updating resources.
  * The Panther user interface for display of resources.
+
+## panther-resources-api
+The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
 
 ## panther-resources-queue
 This sqs queue has events from recently changed infrastructure.
