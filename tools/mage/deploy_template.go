@@ -215,7 +215,9 @@ func createChangeSet(
 
 		status := aws.StringValue(response.Status)
 		reason := aws.StringValue(response.StatusReason)
-		if status == "FAILED" && strings.HasPrefix(reason, "The submitted information didn't contain changes") {
+		if status == "FAILED" && (strings.HasPrefix(reason, "The submitted information didn't contain changes") ||
+			strings.HasPrefix(reason, "No updates are to be performed")) {
+
 			logger.Debugf("deploy: stack %s is already up to date", stack)
 			_, err := client.DeleteChangeSet(&cloudformation.DeleteChangeSetInput{
 				ChangeSetName: createInput.ChangeSetName,

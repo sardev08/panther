@@ -35,44 +35,47 @@ import (
 
 const (
 	awsEnvFile       = "out/.env.aws"
-	frontendStack    = "panther-app-frontend"
-	frontendTemplate = "deployments/frontend.yml"
+	frontendStack    = "panther-web"
+	frontendTemplate = "deployments/web_server.yml"
 )
 
-func deployFrontend(awsSession *session.Session, bucket string, backendOutputs map[string]string, settings *config.PantherConfig) {
-	if err := generateDotEnvFromCfnOutputs(awsSession, backendOutputs); err != nil {
+// Returns stack outputs
+func deployFrontend(
+	awsSession *session.Session,
+	settings *config.PantherConfig,
+	accountID, bucket string,
+	bootstrapOutputs map[string]string,
+) map[string]string {
+
+	// Save .env file
+	if err := godotenv.Write(
+		map[string]string{
+			"AWS_REGION":                           *awsSession.Config.Region,
+			"AWS_ACCOUNT_ID":                       accountID,
+			"WEB_APPLICATION_GRAPHQL_API_ENDPOINT": bootstrapOutputs["GraphQLApiEndpoint"],
+			"WEB_APPLICATION_USER_POOL_ID":         bootstrapOutputs["UserPoolId"],
+			"WEB_APPLICATION_USER_POOL_CLIENT_ID":  bootstrapOutputs["AppClientId"],
+		},
+		awsEnvFile,
+	); err != nil {
 		logger.Fatalf("failed to write ENV variables to file %s: %v", awsEnvFile, err)
 	}
 
-	dockerImage, err := buildAndPushImageFromSource(awsSession, backendOutputs["WebApplicationImageRegistry"])
+	dockerImage, err := buildAndPushImageFromSource(awsSession, bootstrapOutputs["ImageRegistry"])
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	params := map[string]string{
-		"WebApplicationFargateTaskCPU":              strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskCPU),
-		"WebApplicationFargateTaskMemory":           strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskMemory),
-		"WebApplicationImage":                       dockerImage,
-		"WebApplicationClusterName":                 backendOutputs["WebApplicationClusterName"],
-		"WebApplicationVpcId":                       backendOutputs["WebApplicationVpcId"],
-		"WebApplicationSubnetOneId":                 backendOutputs["WebApplicationSubnetOneId"],
-		"WebApplicationSubnetTwoId":                 backendOutputs["WebApplicationSubnetTwoId"],
-		"WebApplicationLoadBalancerListenerArn":     backendOutputs["WebApplicationLoadBalancerListenerArn"],
-		"WebApplicationLoadBalancerSecurityGroupId": backendOutputs["WebApplicationLoadBalancerSecurityGroupId"],
+		"SubnetOneId":    bootstrapOutputs["SubnetOneId"],
+		"SubnetTwoId":    bootstrapOutputs["SubnetTwoId"],
+		"ElbTargetGroup": bootstrapOutputs["LoadBalancerTargetGroup"],
+		"SecurityGroup":  bootstrapOutputs["WebSecurityGroup"],
+		"Image":          dockerImage,
+		"CPU":            strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskCPU),
+		"Memory":         strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskMemory),
 	}
-	deployTemplate(awsSession, frontendTemplate, bucket, frontendStack, params)
-}
-
-// Accepts Cloudformation outputs, converts the keys into a screaming snakecase format and stores them in a dotenv file
-func generateDotEnvFromCfnOutputs(awsSession *session.Session, outputs map[string]string) error {
-	conventionalOutputs := map[string]string{
-		"AWS_REGION":                           *awsSession.Config.Region,
-		"AWS_ACCOUNT_ID":                       outputs["AWSAccountId"],
-		"WEB_APPLICATION_GRAPHQL_API_ENDPOINT": outputs["WebApplicationGraphqlApiEndpoint"],
-		"WEB_APPLICATION_USER_POOL_ID":         outputs["WebApplicationUserPoolId"],
-		"WEB_APPLICATION_USER_POOL_CLIENT_ID":  outputs["WebApplicationUserPoolClientId"],
-	}
-	return godotenv.Write(conventionalOutputs, awsEnvFile)
+	return deployTemplate(awsSession, frontendTemplate, bucket, frontendStack, params)
 }
 
 // Build a personalized docker image from source and push it to the private image repo of the user
@@ -96,8 +99,8 @@ func buildAndPushImageFromSource(awsSession *session.Session, imageRegistry stri
 		return "", err
 	}
 
-	logger.Info("deploy: docker build web server (deployments/web/Dockerfile)")
-	dockerBuildOutput, err := sh.Output("docker", "build", "--file", "deployments/web/Dockerfile", "--quiet", ".")
+	logger.Info("deploy: docker build web server (deployments/Dockerfile)")
+	dockerBuildOutput, err := sh.Output("docker", "build", "--file", "deployments/Dockerfile", "--quiet", ".")
 	if err != nil {
 		return "", fmt.Errorf("docker build failed: %v", err)
 	}

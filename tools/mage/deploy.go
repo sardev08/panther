@@ -34,6 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/magefile/mage/sh"
 
 	"github.com/panther-labs/panther/api/gateway/analysis/client"
@@ -116,11 +117,16 @@ func Deploy() {
 	}
 
 	deployPrecheck(*awsSession.Config.Region)
-	logger.Infof("deploy: deploying Panther to %s", *awsSession.Config.Region)
+	identity, err := sts.New(awsSession).GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		logger.Fatalf("failed to get caller identity: %v", err)
+	}
+	accountID := *identity.Account
+	logger.Infof("deploy: deploying Panther to account %s (%s)", accountID, *awsSession.Config.Region)
 
 	outputs := bootstrapStage(awsSession)
 
-	stackStuff := gatewayStage(awsSession, settings, outputs)
+	stackStuff := gatewayStage(awsSession, settings, accountID, outputs)
 	fmt.Println(stackStuff)
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -220,17 +226,24 @@ func bootstrapStage(awsSession *session.Session) map[string]string {
 func gatewayStage(
 	awsSession *session.Session,
 	settings *config.PantherConfig,
+	accountID string,
 	bootstrapOutputs map[string]string,
 ) map[string]map[string]string {
 
 	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
 
 	// Keeping these separate variables prevents concurrency conflicts
-	var gatewayOutputs, glueOutputs, monitoringOutputs map[string]string
+	var webOutputs, gatewayOutputs, glueOutputs, monitoringOutputs map[string]string
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 
 	sourceBucket := bootstrapOutputs["SourceBucket"]
+
+	// Web server
+	go func() {
+		webOutputs = deployFrontend(awsSession, settings, accountID, sourceBucket, bootstrapOutputs)
+		wg.Done()
+	}()
 
 	// API Gateway
 	go func() {
@@ -270,6 +283,7 @@ func gatewayStage(
 
 	wg.Wait()
 	return map[string]map[string]string{
+		frontendStack:   webOutputs,
 		gatewayStack:    gatewayOutputs,
 		glueStack:       glueOutputs,
 		monitoringStack: monitoringOutputs,

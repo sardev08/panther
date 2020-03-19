@@ -246,7 +246,6 @@ Resources:
         - family_name
 
   ########## ECR + ECS ##########
-  # TODO: ImageRepo: {AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${ImageName}
   PantherWebImageRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -579,6 +578,11 @@ Outputs:
   WebSecurityGroup:
     Description: Public web app security group
     Value: !Ref WebApplicationServerSecurityGroup
+
+  # ECR
+  ImageRegistry:
+    Description: Docker image registry which stores web app images
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${PantherWebImageRepository}'
 
   # Appsync
   GraphQLApiEndpoint:
