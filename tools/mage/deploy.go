@@ -19,32 +19,21 @@ package mage
  */
 
 import (
-	"encoding/base64"
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/magefile/mage/sh"
 
-	"github.com/panther-labs/panther/api/gateway/analysis/client"
-	"github.com/panther-labs/panther/api/gateway/analysis/client/operations"
-	analysismodels "github.com/panther-labs/panther/api/gateway/analysis/models"
-	orgmodels "github.com/panther-labs/panther/api/lambda/organization/models"
-	usermodels "github.com/panther-labs/panther/api/lambda/users/models"
 	"github.com/panther-labs/panther/pkg/awsathena"
-	"github.com/panther-labs/panther/pkg/awsglue"
-	"github.com/panther-labs/panther/pkg/gatewayapi"
 	"github.com/panther-labs/panther/pkg/shutil"
 	"github.com/panther-labs/panther/tools/athenaviews"
 	"github.com/panther-labs/panther/tools/config"
@@ -54,13 +43,13 @@ const (
 	// CloudFormation templates + stacks
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
-	gatewayStack       = "panther-bootstrap2"
-	gatewayTemplate    = apiEmbeddedTemplate
+	gatewayStack      = "panther-bootstrap2"
+	gatewayTemplate   = apiEmbeddedTemplate
 
-	appsyncStack    = "panther-appsync"
-	appsyncTemplate = "deployments/appsync.yml"
-	coreStack = "panther-core"
-	coreTemplate = "deployments/core.yml"
+	appsyncStack       = "panther-appsync"
+	appsyncTemplate    = "deployments/appsync.yml"
+	coreStack          = "panther-core"
+	coreTemplate       = "deployments/core.yml"
 	glueStack          = "panther-glue"
 	glueTemplate       = "out/deployments/gluetables.json"
 	monitoringStack    = "panther-monitoring"
@@ -246,12 +235,12 @@ func deployMainStacks(
 	// Core
 	go func() {
 		deployTemplate(awsSession, coreTemplate, sourceBucket, coreStack, map[string]string{
-			"AppDomainURL": bootstrapOutputs["LoadBalancerUrl"],
+			"AppDomainURL":           bootstrapOutputs["LoadBalancerUrl"],
 			"AnalysisVersionsBucket": bootstrapOutputs["AnalysisVersionsBucket"],
-			"AnalysisApiId": gatewayOutputs["AnalysisApiId"],
-			"ComplianceApiId": gatewayOutputs["ComplianceApiId"],
-			"SqsKeyId": bootstrapOutputs["QueueEncryptionKeyId"],
-			"UserPoolId": bootstrapOutputs["UserPoolId"],
+			"AnalysisApiId":          gatewayOutputs["AnalysisApiId"],
+			"ComplianceApiId":        gatewayOutputs["ComplianceApiId"],
+			"SqsKeyId":               bootstrapOutputs["QueueEncryptionKeyId"],
+			"UserPoolId":             bootstrapOutputs["UserPoolId"],
 			// TODO: optional params from config file
 		})
 		wg.Done()
@@ -285,7 +274,7 @@ func deployMainStacks(
 	// Monitoring
 	go func() {
 		deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, map[string]string{
-			"AlarmTopicArn":        settings.MonitoringParameterValues.AlarmSNSTopicARN,
+			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
 			"AppsyncId":            bootstrapOutputs["GraphQLApiId"],
 			"LoadBalancerFullName": bootstrapOutputs["LoadBalancerFullName"],
 		})
@@ -299,40 +288,40 @@ func deployMainStacks(
 //
 // This will create a Python layer, pass down the name of the log database,
 // pass down user supplied alarm SNS topic and a self-signed cert if necessary.
-func getBackendDeployParams(
-	awsSession *session.Session, settings *config.PantherConfig, sourceBucket string, logBucket string) map[string]string {
-
-	v := settings.BackendParameterValues
-	result := map[string]string{
-		"AuditRoleName":                auditRole,
-		"RemediationRoleName":          remediationRole,
-		"CloudWatchLogRetentionDays":   strconv.Itoa(v.CloudWatchLogRetentionDays),
-		"Debug":                        strconv.FormatBool(v.Debug),
-		"LayerVersionArns":             v.LayerVersionArns,
-		"LogProcessorLambdaMemorySize": strconv.Itoa(v.LogProcessorLambdaMemorySize),
-		"PythonLayerVersionArn":        v.PythonLayerVersionArn,
-		"S3BucketAccessLogs":           logBucket,
-		"S3BucketSource":               sourceBucket,
-		"TracingMode":                  v.TracingMode,
-		"WebApplicationCertificateArn": v.WebApplicationCertificateArn,
-		"CustomDomain":                 v.CustomDomain,
-	}
-
-	// If no custom Python layer is defined, then we need to build the default one.
-	if result["PythonLayerVersionArn"] == "" {
-		result["PythonLayerKey"] = layerS3ObjectKey
-		result["PythonLayerObjectVersion"] = uploadLayer(awsSession, settings.PipLayer, sourceBucket, layerS3ObjectKey)
-	}
-
-	// If no pre-existing cert is provided, then create one if necessary.
-	if result["WebApplicationCertificateArn"] == "" {
-		result["WebApplicationCertificateArn"] = uploadLocalCertificate(awsSession)
-	}
-
-	result["PantherLogProcessingDatabase"] = awsglue.LogProcessingDatabaseName
-
-	return result
-}
+//func getBackendDeployParams(
+//	awsSession *session.Session, settings *config.PantherConfig, sourceBucket string, logBucket string) map[string]string {
+//
+//	v := settings.BackendParameterValues
+//	result := map[string]string{
+//		"AuditRoleName":                auditRole,
+//		"RemediationRoleName":          remediationRole,
+//		"CloudWatchLogRetentionDays":   strconv.Itoa(v.CloudWatchLogRetentionDays),
+//		"Debug":                        strconv.FormatBool(v.Debug),
+//		"LayerVersionArns":             v.LayerVersionArns,
+//		"LogProcessorLambdaMemorySize": strconv.Itoa(v.LogProcessorLambdaMemorySize),
+//		"PythonLayerVersionArn":        v.PythonLayerVersionArn,
+//		"S3BucketAccessLogs":           logBucket,
+//		"S3BucketSource":               sourceBucket,
+//		"TracingMode":                  v.TracingMode,
+//		"WebApplicationCertificateArn": v.WebApplicationCertificateArn,
+//		"CustomDomain":                 v.CustomDomain,
+//	}
+//
+//	// If no custom Python layer is defined, then we need to build the default one.
+//	if result["PythonLayerVersionArn"] == "" {
+//		result["PythonLayerKey"] = layerS3ObjectKey
+//		result["PythonLayerObjectVersion"] = uploadLayer(awsSession, settings.PipLayer, sourceBucket, layerS3ObjectKey)
+//	}
+//
+//	// If no pre-existing cert is provided, then create one if necessary.
+//	if result["WebApplicationCertificateArn"] == "" {
+//		result["WebApplicationCertificateArn"] = uploadLocalCertificate(awsSession)
+//	}
+//
+//	result["PantherLogProcessingDatabase"] = awsglue.LogProcessingDatabaseName
+//
+//	return result
+//}
 
 // Upload custom Python analysis layer to S3 (if it isn't already), returning version ID
 func uploadLayer(awsSession *session.Session, libs []string, bucket, key string) string {
@@ -378,131 +367,131 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 	return *result.VersionID
 }
 
-// After the main stack is deployed, we need to make several manual API calls
-func postDeploySetup(awsSession *session.Session, backendOutputs map[string]string, settings *config.PantherConfig) error {
-	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
-	userPoolID := backendOutputs["WebApplicationUserPoolId"]
-	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
-	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
-		MfaConfiguration: aws.String("ON"),
-		SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
-			Enabled: aws.Bool(true),
-		},
-		UserPoolId: &userPoolID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
-	}
-
-	if err := inviteFirstUser(awsSession); err != nil {
-		return err
-	}
-
-	return initializeAnalysisSets(awsSession, backendOutputs["AnalysisApiEndpoint"], settings)
-}
-
-// If the users list is empty (e.g. on the initial deploy), create the first user.
-func inviteFirstUser(awsSession *session.Session) error {
-	input := &usermodels.LambdaInput{
-		ListUsers: &usermodels.ListUsersInput{},
-	}
-	var output usermodels.ListUsersOutput
-	if err := invokeLambda(awsSession, "panther-users-api", input, &output); err != nil {
-		return fmt.Errorf("failed to list users: %v", err)
-	}
-	if len(output.Users) > 0 {
-		return nil
-	}
-
-	// Prompt the user for basic information.
-	logger.Info("setting up initial Panther admin user...")
-	fmt.Println()
-	firstName := promptUser("First name: ", nonemptyValidator)
-	lastName := promptUser("Last name: ", nonemptyValidator)
-	email := promptUser("Email: ", emailValidator)
-	defaultOrgName := firstName + "-" + lastName
-	orgName := promptUser("Company/Team name ("+defaultOrgName+"): ", nil)
-	if orgName == "" {
-		orgName = defaultOrgName
-	}
-
-	// users-api.InviteUser
-	input = &usermodels.LambdaInput{
-		InviteUser: &usermodels.InviteUserInput{
-			GivenName:  &firstName,
-			FamilyName: &lastName,
-			Email:      &email,
-		},
-	}
-	if err := invokeLambda(awsSession, "panther-users-api", input, nil); err != nil {
-		return err
-	}
-	logger.Infof("invite sent to %s: check your email! (it may be in spam)", email)
-
-	// organizations-api.UpdateSettings
-	updateSettingsInput := &orgmodels.LambdaInput{
-		UpdateSettings: &orgmodels.UpdateSettingsInput{DisplayName: &orgName, Email: &email},
-	}
-	return invokeLambda(awsSession, "panther-organization-api", &updateSettingsInput, nil)
-}
-
-// Install Python rules/policies if they don't already exist.
-func initializeAnalysisSets(awsSession *session.Session, endpoint string, settings *config.PantherConfig) error {
-	httpClient := gatewayapi.GatewayClient(awsSession)
-	apiClient := client.NewHTTPClientWithConfig(nil, client.DefaultTransportConfig().
-		WithBasePath("/v1").WithHost(endpoint))
-
-	policies, err := apiClient.Operations.ListPolicies(&operations.ListPoliciesParams{
-		PageSize:   aws.Int64(1),
-		HTTPClient: httpClient,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list existing policies: %v", err)
-	}
-
-	rules, err := apiClient.Operations.ListRules(&operations.ListRulesParams{
-		PageSize:   aws.Int64(1),
-		HTTPClient: httpClient,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to list existing rules: %v", err)
-	}
-
-	if len(policies.Payload.Policies) > 0 || len(rules.Payload.Rules) > 0 {
-		logger.Debug("deploy: initial analysis set ignored: policies and/or rules already exist")
-		return nil
-	}
-
-	var newRules, newPolicies int64
-	for _, path := range settings.InitialAnalysisSets {
-		logger.Info("deploy: uploading initial analysis pack " + path)
-		var contents []byte
-		if strings.HasPrefix(path, "file://") {
-			contents = readFile(strings.TrimPrefix(path, "file://"))
-		} else {
-			contents, err = download(path)
-			if err != nil {
-				return err
-			}
-		}
-
-		// BulkUpload to panther-analysis-api
-		encoded := base64.StdEncoding.EncodeToString(contents)
-		response, err := apiClient.Operations.BulkUpload(&operations.BulkUploadParams{
-			Body: &analysismodels.BulkUpload{
-				Data:   analysismodels.Base64zipfile(encoded),
-				UserID: mageUserID,
-			},
-			HTTPClient: httpClient,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to upload %s: %v", path, err)
-		}
-
-		newRules += *response.Payload.NewRules
-		newPolicies += *response.Payload.NewPolicies
-	}
-
-	logger.Infof("deploy: initialized with %d policies and %d rules", newPolicies, newRules)
-	return nil
-}
+//// After the main stack is deployed, we need to make several manual API calls
+//func postDeploySetup(awsSession *session.Session, backendOutputs map[string]string, settings *config.PantherConfig) error {
+//	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
+//	userPoolID := backendOutputs["WebApplicationUserPoolId"]
+//	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
+//	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
+//		MfaConfiguration: aws.String("ON"),
+//		SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
+//			Enabled: aws.Bool(true),
+//		},
+//		UserPoolId: &userPoolID,
+//	})
+//	if err != nil {
+//		return fmt.Errorf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
+//	}
+//
+//	if err := inviteFirstUser(awsSession); err != nil {
+//		return err
+//	}
+//
+//	return initializeAnalysisSets(awsSession, backendOutputs["AnalysisApiEndpoint"], settings)
+//}
+//
+//// If the users list is empty (e.g. on the initial deploy), create the first user.
+//func inviteFirstUser(awsSession *session.Session) error {
+//	input := &usermodels.LambdaInput{
+//		ListUsers: &usermodels.ListUsersInput{},
+//	}
+//	var output usermodels.ListUsersOutput
+//	if err := invokeLambda(awsSession, "panther-users-api", input, &output); err != nil {
+//		return fmt.Errorf("failed to list users: %v", err)
+//	}
+//	if len(output.Users) > 0 {
+//		return nil
+//	}
+//
+//	// Prompt the user for basic information.
+//	logger.Info("setting up initial Panther admin user...")
+//	fmt.Println()
+//	firstName := promptUser("First name: ", nonemptyValidator)
+//	lastName := promptUser("Last name: ", nonemptyValidator)
+//	email := promptUser("Email: ", emailValidator)
+//	defaultOrgName := firstName + "-" + lastName
+//	orgName := promptUser("Company/Team name ("+defaultOrgName+"): ", nil)
+//	if orgName == "" {
+//		orgName = defaultOrgName
+//	}
+//
+//	// users-api.InviteUser
+//	input = &usermodels.LambdaInput{
+//		InviteUser: &usermodels.InviteUserInput{
+//			GivenName:  &firstName,
+//			FamilyName: &lastName,
+//			Email:      &email,
+//		},
+//	}
+//	if err := invokeLambda(awsSession, "panther-users-api", input, nil); err != nil {
+//		return err
+//	}
+//	logger.Infof("invite sent to %s: check your email! (it may be in spam)", email)
+//
+//	// organizations-api.UpdateSettings
+//	updateSettingsInput := &orgmodels.LambdaInput{
+//		UpdateSettings: &orgmodels.UpdateSettingsInput{DisplayName: &orgName, Email: &email},
+//	}
+//	return invokeLambda(awsSession, "panther-organization-api", &updateSettingsInput, nil)
+//}
+//
+//// Install Python rules/policies if they don't already exist.
+//func initializeAnalysisSets(awsSession *session.Session, endpoint string, settings *config.PantherConfig) error {
+//	httpClient := gatewayapi.GatewayClient(awsSession)
+//	apiClient := client.NewHTTPClientWithConfig(nil, client.DefaultTransportConfig().
+//		WithBasePath("/v1").WithHost(endpoint))
+//
+//	policies, err := apiClient.Operations.ListPolicies(&operations.ListPoliciesParams{
+//		PageSize:   aws.Int64(1),
+//		HTTPClient: httpClient,
+//	})
+//	if err != nil {
+//		return fmt.Errorf("failed to list existing policies: %v", err)
+//	}
+//
+//	rules, err := apiClient.Operations.ListRules(&operations.ListRulesParams{
+//		PageSize:   aws.Int64(1),
+//		HTTPClient: httpClient,
+//	})
+//	if err != nil {
+//		return fmt.Errorf("failed to list existing rules: %v", err)
+//	}
+//
+//	if len(policies.Payload.Policies) > 0 || len(rules.Payload.Rules) > 0 {
+//		logger.Debug("deploy: initial analysis set ignored: policies and/or rules already exist")
+//		return nil
+//	}
+//
+//	var newRules, newPolicies int64
+//	for _, path := range settings.InitialAnalysisSets {
+//		logger.Info("deploy: uploading initial analysis pack " + path)
+//		var contents []byte
+//		if strings.HasPrefix(path, "file://") {
+//			contents = readFile(strings.TrimPrefix(path, "file://"))
+//		} else {
+//			contents, err = download(path)
+//			if err != nil {
+//				return err
+//			}
+//		}
+//
+//		// BulkUpload to panther-analysis-api
+//		encoded := base64.StdEncoding.EncodeToString(contents)
+//		response, err := apiClient.Operations.BulkUpload(&operations.BulkUploadParams{
+//			Body: &analysismodels.BulkUpload{
+//				Data:   analysismodels.Base64zipfile(encoded),
+//				UserID: mageUserID,
+//			},
+//			HTTPClient: httpClient,
+//		})
+//		if err != nil {
+//			return fmt.Errorf("failed to upload %s: %v", path, err)
+//		}
+//
+//		newRules += *response.Payload.NewRules
+//		newPolicies += *response.Payload.NewPolicies
+//	}
+//
+//	logger.Infof("deploy: initialized with %d policies and %d rules", newPolicies, newRules)
+//	return nil
+//}

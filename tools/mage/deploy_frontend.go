@@ -72,8 +72,8 @@ func deployFrontend(
 		"ElbTargetGroup": bootstrapOutputs["LoadBalancerTargetGroup"],
 		"SecurityGroup":  bootstrapOutputs["WebSecurityGroup"],
 		"Image":          dockerImage,
-		"CPU":            strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskCPU),
-		"Memory":         strconv.Itoa(settings.FrontendParameterValues.WebApplicationFargateTaskMemory),
+		"CPU":            strconv.Itoa(settings.Web.FargateTaskCPU),
+		"Memory":         strconv.Itoa(settings.Web.FargateTaskMemory),
 	}
 	return deployTemplate(awsSession, frontendTemplate, bucket, frontendStack, params)
 }

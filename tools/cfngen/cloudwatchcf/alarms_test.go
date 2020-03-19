@@ -30,7 +30,7 @@ import (
 
 func TestGenerateAlarms(t *testing.T) {
 	_, cf, err := GenerateAlarms("./testdata/cf.yml", &config.PantherConfig{
-		BackendParameterValues: config.BackendParameters{
+		Infra: config.Infra{
 			LogProcessorLambdaMemorySize: 256,
 		},
 	})
