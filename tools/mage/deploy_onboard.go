@@ -32,6 +32,10 @@ const (
 	onboardStack    = "panther-app-onboard"
 	onboardTemplate = "deployments/onboard.yml"
 
+	// CloudSec IAM Roles, DO NOT CHANGE! panther-compliance-iam.yml CF depends on these names
+	auditRole       = "PantherAuditRole"
+	remediationRole = "PantherRemediationRole"
+
 	realTimeEventStackSetURL             = "https://s3-us-west-2.amazonaws.com/panther-public-cloudformation-templates/panther-cloudwatch-events/latest/template.yml" // nolint:lll
 	realTimeEventsStackSet               = "panther-real-time-events"
 	realTimeEventsExecutionRoleName      = "PantherCloudFormationStackSetExecutionRole"

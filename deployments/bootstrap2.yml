@@ -118,6 +118,9 @@ Resources:
       TracingEnabled: !Ref TracingEnabled
 
 Outputs:
+  PythonLayerVersionArn:
+    Description: Python layer version
+    Value: !If [CreatePythonLayer, !Ref PythonLayer, !Ref PythonLayerVersionArn]
   AnalysisApiId:
     Description: Analysis API Gateway ID
     Value: !Ref AnalysisApi

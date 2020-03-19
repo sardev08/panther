@@ -29,7 +29,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -40,24 +39,17 @@ import (
 )
 
 const (
-	keysDirectory        = "keys"
-	certificateFile      = keysDirectory + "/panther-tls-public.crt"
-	privateKeyFile       = keysDirectory + "/panther-tls-private.key"
-	keyLength            = 2048
-	certFilePermissions  = 0700
-	certificateOutputKey = "WebApplicationCertificateArn"
+	keysDirectory       = "keys"
+	certificateFile     = keysDirectory + "/panther-tls-public.crt"
+	privateKeyFile      = keysDirectory + "/panther-tls-private.key"
+	keyLength           = 2048
+	certFilePermissions = 0700
 )
 
 // Upload a local self-signed TLS certificate to ACM. Only needs to happen once per installation
 //
 // In regions/partitions where ACM is not supported, we fall back to IAM certificate management.
 func uploadLocalCertificate(awsSession *session.Session) string {
-	// Check if certificate has already been uploaded
-	if certArn := getExistingCertificate(awsSession); certArn != nil {
-		logger.Debugf("deploy: load balancer certificate %s already exists", *certArn)
-		return *certArn
-	}
-
 	// Ensure the certificate and key file exist. If not, create them.
 	_, certErr := os.Stat(certificateFile)
 	_, keyErr := os.Stat(privateKeyFile)
@@ -102,21 +94,6 @@ func uploadLocalCertificate(awsSession *session.Session) string {
 	}
 
 	return *output.CertificateArn
-}
-
-// getExistingCertificate checks to see if there is already an ACM/IAM certificate configured
-func getExistingCertificate(awsSession *session.Session) *string {
-	outputs, err := getStackOutputs(awsSession, backendStack)
-	if err != nil {
-		if strings.Contains(err.Error(), "Stack with id "+backendStack+" does not exist") {
-			return nil
-		}
-		logger.Fatal(err)
-	}
-	if arn, ok := outputs[certificateOutputKey]; ok {
-		return &arn
-	}
-	return nil
 }
 
 // generateKeys generates the self signed private key and certificate for HTTPS access to the web application

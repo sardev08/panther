@@ -23,12 +23,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/magefile/mage/sh"
@@ -55,7 +57,7 @@ const (
 	monitoringStack    = "panther-monitoring"
 	monitoringTemplate = "deployments/monitoring.yml"
 
-	// OLD ...
+	// TODO: remove
 	backendStack    = "panther-app"
 	backendTemplate = "deployments/backend.yml"
 	bucketStack     = "panther-buckets" // prereq stack with Panther S3 buckets
@@ -65,10 +67,6 @@ const (
 	layerSourceDir   = "out/pip/analysis/python"
 	layerZipfile     = "out/layer.zip"
 	layerS3ObjectKey = "layers/python-analysis.zip"
-
-	// CloudSec IAM Roles, DO NOT CHANGE! panther-compliance-iam.yml CF depends on these names
-	auditRole       = "PantherAuditRole"
-	remediationRole = "PantherRemediationRole"
 
 	mageUserID = "00000000-0000-4000-8000-000000000000" // used to indicate mage made the call, must be a valid uuid4!
 )
@@ -118,15 +116,12 @@ func Deploy() {
 	accountID := *identity.Account
 	logger.Infof("deploy: deploying Panther to account %s (%s)", accountID, *awsSession.Config.Region)
 
-	// ***** Step 1: bootstrap stack, generate CFN, compile Lambda functions
-	outputs := bootstrap(awsSession)
+	// ***** Step 1: bootstrap stacks and build artifacts
+	outputs := bootstrap(awsSession, settings)
+	logger.Info(outputs)
 
-	// ***** Step 2: deploy api gateway (template is large and must be uploaded to S3)
-	// TODO: parameters (TracingEnabled)
-	gatewayOutputs := deployTemplate(awsSession, gatewayTemplate, outputs["SourceBucket"], gatewayStack, nil)
-
-	// ***** Step 3: deploy remaining stacks in parallel
-	deployMainStacks(awsSession, settings, accountID, outputs, gatewayOutputs)
+	// ***** Step 2: deploy remaining stacks in parallel
+	// deployMainStacks(awsSession, settings, accountID, outputs)
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -175,31 +170,75 @@ func deployPrecheck(awsRegion string) {
 	}
 }
 
-// In parallel, deploy bootstrap.yml and build lambda source + cfn templates
+// Deploy bootstrap stacks and build deployment artifacts.
 //
-// Returns outputs from bootstrap stack
-func bootstrap(awsSession *session.Session) map[string]string {
+// Returns combined outputs from bootstrap stacks.
+func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[string]string {
 	var outputs map[string]string
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 
+	// Deploy first bootstrap stack
 	go func() {
-		// TODO: proper parameters loaded from config file
-		params := map[string]string{"CertificateArn": "arn:aws:acm:us-west-2:101802775469:certificate/6e51b91b-0d7d-4592-89a3-c113c78e3ab3"} //uploadLocalCertificate(awsSession)}
+		params := map[string]string{
+			"AccessLogsBucket":           settings.Monitoring.AccessLogsBucketName,
+			"CloudWatchLogRetentionDays": strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
+			"CustomDomain":               settings.Web.CustomDomain,
+			"TracingMode":                settings.Monitoring.TracingMode,
+		}
+
+		if settings.Web.CertificateArn == "" {
+			exists, err := stackExists(cloudformation.New(awsSession), bootstrapStack)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			if !exists {
+				// The parameter only needs to be specified on the first deployment
+				params["CertificateArn"] = uploadLocalCertificate(awsSession)
+			}
+		} else {
+			// Always use the value in the settings file if it's configured
+			params["CertificateArn"] = settings.Web.CertificateArn
+		}
+
 		outputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
 		wg.Done()
 	}()
 
-	go func() {
-		// TODO: swagger requires changing the working directory, which may not work well in parallel with ^
-		var b Build
-		// we don't build optools, takes too long and not required for deploy
-		b.Lambda()
-		b.Cfn()
-		wg.Done()
-	}()
-
+	// While waiting for bootstrap, build deployment artifacts
+	// We don't include opstools here, takes too long and not required for deploy
+	var b Build
+	// TODO: build:api requires changing the working directory, which may cause problems with goroutine
+	b.Lambda()
+	b.Cfn()
 	wg.Wait()
+	// TODO: we can build the python layer while we are waiting here as well
+
+	// Now that the S3 buckets are in place and swagger specs are embedded, we can deploy the second
+	// bootstrap stack (API gateways and the Python layer).
+	sourceBucket := outputs["SourceBucket"]
+	params := map[string]string{
+		"TracingEnabled": strconv.FormatBool(settings.Monitoring.TracingMode != ""),
+	}
+
+	if settings.Infra.PythonLayerVersionArn == "" {
+		// Build default layer
+		params["SourceBucket"] = sourceBucket
+		params["PythonLayerKey"] = layerS3ObjectKey
+		params["PythonLayerObjectVersion"] = uploadLayer(awsSession, settings.Infra.PipLayer, sourceBucket, layerS3ObjectKey)
+	} else {
+		// Use configured custom layer
+		params["PythonLayerVersionArn"] = settings.Infra.PythonLayerVersionArn
+	}
+
+	// Deploy second bootstrap stack and merge outputs
+	for k, v := range deployTemplate(awsSession, gatewayTemplate, sourceBucket, gatewayStack, params) {
+		if _, exists := outputs[k]; exists {
+			logger.Fatalf("output %s exists in both bootstrap stacks", k)
+		}
+		outputs[k] = v
+	}
+
 	return outputs
 }
 
@@ -283,45 +322,6 @@ func deployMainStacks(
 
 	wg.Wait()
 }
-
-// Generate the set of deploy parameters for the main application stack.
-//
-// This will create a Python layer, pass down the name of the log database,
-// pass down user supplied alarm SNS topic and a self-signed cert if necessary.
-//func getBackendDeployParams(
-//	awsSession *session.Session, settings *config.PantherConfig, sourceBucket string, logBucket string) map[string]string {
-//
-//	v := settings.BackendParameterValues
-//	result := map[string]string{
-//		"AuditRoleName":                auditRole,
-//		"RemediationRoleName":          remediationRole,
-//		"CloudWatchLogRetentionDays":   strconv.Itoa(v.CloudWatchLogRetentionDays),
-//		"Debug":                        strconv.FormatBool(v.Debug),
-//		"LayerVersionArns":             v.LayerVersionArns,
-//		"LogProcessorLambdaMemorySize": strconv.Itoa(v.LogProcessorLambdaMemorySize),
-//		"PythonLayerVersionArn":        v.PythonLayerVersionArn,
-//		"S3BucketAccessLogs":           logBucket,
-//		"S3BucketSource":               sourceBucket,
-//		"TracingMode":                  v.TracingMode,
-//		"WebApplicationCertificateArn": v.WebApplicationCertificateArn,
-//		"CustomDomain":                 v.CustomDomain,
-//	}
-//
-//	// If no custom Python layer is defined, then we need to build the default one.
-//	if result["PythonLayerVersionArn"] == "" {
-//		result["PythonLayerKey"] = layerS3ObjectKey
-//		result["PythonLayerObjectVersion"] = uploadLayer(awsSession, settings.PipLayer, sourceBucket, layerS3ObjectKey)
-//	}
-//
-//	// If no pre-existing cert is provided, then create one if necessary.
-//	if result["WebApplicationCertificateArn"] == "" {
-//		result["WebApplicationCertificateArn"] = uploadLocalCertificate(awsSession)
-//	}
-//
-//	result["PantherLogProcessingDatabase"] = awsglue.LogProcessingDatabaseName
-//
-//	return result
-//}
 
 // Upload custom Python analysis layer to S3 (if it isn't already), returning version ID
 func uploadLayer(awsSession *session.Session, libs []string, bucket, key string) string {
