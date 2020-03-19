@@ -32,6 +32,9 @@ Parameters:
   ComplianceApiId:
     Type: String
     Description: Compliance API gateway ID
+  OutputsKeyId:
+    Type: String
+    Description: KMS key for encrypting alert outputs
   SqsKeyId:
     Type: String
     Description: KMS key for encrypting SQS queues
@@ -360,25 +363,6 @@ Resources:
       # * The Panther user interface for managing destinations may be impacted.
       # </cfndoc>
 
-  OutputsEncryptionKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: alias/panther-alert-outputs
-      TargetKeyId: !Ref OutputsEncryptionKey
-
-  OutputsEncryptionKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: Encrypts Panther's alert output configuration
-      EnableKeyRotation: true
-      KeyPolicy:
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
-            Action: kms:*
-            Resource: '*'
-
   OutputsApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -387,7 +371,7 @@ Resources:
       Environment:
         Variables:
           DEBUG: !Ref Debug
-          KEY_ID: !Ref OutputsEncryptionKey
+          KEY_ID: !Ref OutputsKeyId
           OUTPUTS_TABLE_NAME: !Ref OutputsTable
           OUTPUTS_DISPLAY_NAME_INDEX_NAME: displayName-index
       FunctionName: panther-outputs-api
@@ -426,7 +410,7 @@ Resources:
                 - kms:Decrypt
                 - kms:Encrypt
                 - kms:GenerateDataKey
-              Resource: !GetAtt OutputsEncryptionKey.Arn
+              Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${OutputsKeyId}
 
   OutputsApiLogGroup:
     Type: AWS::Logs::LogGroup

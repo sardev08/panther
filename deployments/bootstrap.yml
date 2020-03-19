@@ -509,8 +509,7 @@ Resources:
       RetentionInDays: !Ref CloudWatchLogRetentionDays
 
   ########## KMS ##########
-  # TODO - KMS keys take a surprisingly long time to create, so we list all of them here
-  # Outputs encryption
+  # KMS keys take ~2 mins to create, we build all of them here at the same time
   QueueEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
@@ -537,6 +536,25 @@ Resources:
     Properties:
       AliasName: alias/panther-sqs
       TargetKeyId: !Ref QueueEncryptionKey
+
+  OutputsEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/panther-alert-outputs
+      TargetKeyId: !Ref OutputsEncryptionKey
+
+  OutputsEncryptionKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Encrypts Panther's alert output configuration
+      EnableKeyRotation: true
+      KeyPolicy:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: '*'
 
   ########## SNS ##########
   ProcessedDataNotifications:
@@ -605,6 +623,9 @@ Outputs:
     Value: !Ref AppClient
 
   # KMS
+  OutputsEncryptionKeyId:
+    Description: KMS key for encrypting Panther alert outputs
+    Value: !Ref OutputsEncryptionKey
   QueueEncryptionKeyId:
     Description: KMS key for encrypting Panther SQS queues
     Value: !Ref QueueEncryptionKey

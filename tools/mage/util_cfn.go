@@ -28,7 +28,19 @@ import (
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
 )
 
-var allStacks = []string{backendStack, bucketStack, monitoringStack, frontendStack, glueStack, onboardStack}
+var allStacks = []string{
+	bootstrapStack,
+	gatewayStack,
+
+	appsyncStack,
+	cloudsecStack,
+	coreStack,
+	frontendStack,
+	glueStack,
+	logAnalysisStack,
+	monitoringStack,
+	onboardStack,
+}
 
 // Summary of a CloudFormation resource and the stack its contained in
 type cfnResource struct {

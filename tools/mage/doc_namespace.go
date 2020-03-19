@@ -66,7 +66,7 @@ func (t Doc) Cfn() {
 	}
 	defer inventoryFile.Close()
 
-	docs, err := cfndoc.ReadDirs(cfDirs...)
+	docs, err := cfndoc.ReadDirs("deployments")
 	if err != nil {
 		logger.Fatalf("failed to generate operational documentation: %v", err)
 	}

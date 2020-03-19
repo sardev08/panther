@@ -34,9 +34,7 @@ import (
 )
 
 const (
-	awsEnvFile       = "out/.env.aws"
-	frontendStack    = "panther-web"
-	frontendTemplate = "deployments/web_server.yml"
+	awsEnvFile = "out/.env.aws"
 )
 
 // Returns stack outputs

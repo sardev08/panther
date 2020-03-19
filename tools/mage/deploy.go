@@ -55,18 +55,16 @@ const (
 	cloudsecTemplate    = "deployments/cloud_security.yml"
 	coreStack           = "panther-core"
 	coreTemplate        = "deployments/core.yml"
+	frontendStack       = "panther-web"
+	frontendTemplate    = "deployments/web_server.yml"
 	glueStack           = "panther-glue"
 	glueTemplate        = "out/deployments/gluetables.json"
 	logAnalysisStack    = "panther-log-analysis"
 	logAnalysisTemplate = "deployments/log_analysis.yml"
 	monitoringStack     = "panther-monitoring"
 	monitoringTemplate  = "deployments/monitoring.yml"
-
-	// TODO: remove
-	backendStack    = "panther-app"
-	backendTemplate = "deployments/backend.yml"
-	bucketStack     = "panther-buckets" // prereq stack with Panther S3 buckets
-	bucketTemplate  = "deployments/core/buckets.yml"
+	onboardStack        = "panther-app-onboard"
+	onboardTemplate     = "deployments/onboard.yml"
 
 	// Python layer
 	layerSourceDir   = "out/pip/analysis/python"
@@ -316,6 +314,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 			"AnalysisVersionsBucket": outputs["AnalysisVersionsBucket"],
 			"AnalysisApiId":          outputs["AnalysisApiId"],
 			"ComplianceApiId":        outputs["ComplianceApiId"],
+			"OutputsKeyId":           outputs["OutputsEncryptionKeyId"],
 			"SqsKeyId":               outputs["QueueEncryptionKeyId"],
 			"UserPoolId":             outputs["UserPoolId"],
 
@@ -361,7 +360,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 			"LogProcessorLambdaMemorySize": strconv.Itoa(settings.Infra.LogProcessorLambdaMemorySize),
 			"TracingMode":                  settings.Monitoring.TracingMode,
 		})
-		result <- coreStack
+		result <- logAnalysisStack
 	}(finishedStacks)
 
 	// Monitoring

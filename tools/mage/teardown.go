@@ -178,12 +178,6 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 		errCount++
 	}
 
-	// Delete frontend stack first because the ECS service needs to completely stop before the
-	// ECS cluster in the backendStack can be deleted.
-	logger.Infof("deleting CloudFormation stack: %s", frontendStack)
-	go deleteStack(client, aws.String(frontendStack), results)
-	handleResult(<-results)
-
 	// The stackset must be deleted before the StackSetExecutionRole and the StackSetAdminRole
 	go deleteRealTimeEventStack(awsSession, identity, results)
 	// deleteRealTimeEventStack sends two results, one for the stack set instance and one for the stack set itself.
@@ -196,16 +190,26 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 	go deleteOnboardStack(awsSession, results)
 	handleResult(<-results)
 
-	// Trigger the deletion of the remaining stacks in parallel
-	parallelStacks := []string{backendStack, monitoringStack, glueStack, bucketStack}
-	logger.Infof("deleting CloudFormation stacks: %s", strings.Join(parallelStacks, ", "))
+	// Trigger the deletion of the main stacks in parallel
+	//
+	// The ECS cluster in the bootstrap stack has to wait until the ECS service in the frontend stack is
+	// completely stopped. So we don't include the bootstrap stack in the initial parallel set
+	parallelStacks := []string{gatewayStack, appsyncStack, cloudsecStack, coreStack, frontendStack, glueStack, logAnalysisStack, monitoringStack}
+	logger.Infof("deleting CloudFormation stacks: %s",
+		strings.Join(append(parallelStacks, bootstrapStack), ", "))
 	for _, stack := range parallelStacks {
 		go deleteStack(client, aws.String(stack), results)
 	}
 
-	// Wait for all of the stacks to finish
-	for i := 0; i < len(parallelStacks); i++ {
-		handleResult(<-results)
+	// Wait for all of the stacks (incl. bootstrap) to finish deleting
+	for i := 0; i < len(parallelStacks)+1; i++ {
+		r := <-results
+		handleResult(r)
+
+		if r.stackName == frontendStack {
+			// now we can delete the bootstrap stack
+			go deleteStack(client, aws.String(bootstrapStack), results)
+		}
 	}
 
 	if errCount > 0 {
