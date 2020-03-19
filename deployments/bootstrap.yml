@@ -585,6 +585,9 @@ Outputs:
     Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/${PantherWebImageRepository}'
 
   # Appsync
+  AppsyncServiceRoleArn:
+    Description: Appsync IAM role for logs and resolvers
+    Value: !GetAtt AppsyncServiceRole.Arn
   GraphQLApiEndpoint:
     Description: The URL to the Appsync GraphQL Endpoint
     Value: !GetAtt GraphQLApi.GraphQLUrl

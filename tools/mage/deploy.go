@@ -62,6 +62,9 @@ const (
 	monitoringStack    = "panther-monitoring"
 	monitoringTemplate = "deployments/monitoring.yml"
 
+	appsyncStack    = "panther-appsync"
+	appsyncTemplate = "deployments/appsync.yml"
+
 	// OLD ...
 	backendStack    = "panther-app"
 	backendTemplate = "deployments/backend.yml"
@@ -106,6 +109,7 @@ var supportedRegions = map[string]bool{
 func Deploy() {
 	start := time.Now()
 
+	// ***** Step 0: load settings and AWS session and verify environment
 	settings, err := config.Settings()
 	if err != nil {
 		logger.Fatalf("failed to read config file %s: %v", config.Filepath, err)
@@ -124,10 +128,15 @@ func Deploy() {
 	accountID := *identity.Account
 	logger.Infof("deploy: deploying Panther to account %s (%s)", accountID, *awsSession.Config.Region)
 
-	outputs := bootstrapStage(awsSession)
+	// ***** Step 1: bootstrap stack, generate CFN, compile Lambda functions
+	outputs := bootstrap(awsSession)
 
-	stackStuff := gatewayStage(awsSession, settings, accountID, outputs)
-	fmt.Println(stackStuff)
+	// ***** Step 2: deploy api gateway (template is large and must be uploaded to S3)
+	// TODO: parameters (TracingEnabled)
+	gatewayOutputs := deployTemplate(awsSession, gatewayTemplate, outputs["SourceBucket"], gatewayStack, nil)
+
+	// ***** Step 3: deploy remaining stacks in parallel
+	deployMainStacks(awsSession, settings, accountID, outputs, gatewayOutputs)
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -145,24 +154,6 @@ func Deploy() {
 	//	logger.Fatal(err)
 	//}
 	//
-	//// the below can all be done in parallel to speed deployment
-	//var wg sync.WaitGroup
-	//runDeploy := func(deployFunc func()) {
-	//	wg.Add(1)
-	//	go func() {
-	//		deployFunc()
-	//		wg.Done()
-	//	}()
-	//}
-	//
-	//// Creates Glue/Athena related resources
-	//runDeploy(func() { deployDatabases(awsSession, bucket, backendOutputs) })
-	//
-	//// Deploy frontend stack
-	//runDeploy(func() { deployFrontend(awsSession, bucket, backendOutputs, &config) })
-	//
-	//// Deploy monitoring
-	//runDeploy(func() { deployMonitoring(awsSession, bucket, backendOutputs, &config) })
 	//
 	//// Onboard Panther account to Panther
 	//if config.OnboardParameterValues.OnboardSelf {
@@ -194,68 +185,74 @@ func deployPrecheck(awsRegion string) {
 	}
 }
 
-// Deploy stage 1: everything that does not require S3
+// In parallel, deploy bootstrap.yml and build lambda source + cfn templates
 //
-// In parallel: deploy bootstrap.yml, build lambda source + cfn templates
-func bootstrapStage(awsSession *session.Session) map[string]string {
-	var bootstrapOutputs map[string]string
+// Returns outputs from bootstrap stack
+func bootstrap(awsSession *session.Session) map[string]string {
+	var outputs map[string]string
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
 		// TODO: proper parameters loaded from config file
 		params := map[string]string{"CertificateArn": "arn:aws:acm:us-west-2:101802775469:certificate/6e51b91b-0d7d-4592-89a3-c113c78e3ab3"} //uploadLocalCertificate(awsSession)}
-		bootstrapOutputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
+		outputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
 		wg.Done()
 	}()
 
 	go func() {
 		// TODO: swagger requires changing the working directory, which may not work well in parallel with ^
-		Build.All(Build{})
+		var b Build
+		// we don't build optools, takes too long and not required for deploy
+		b.Lambda()
+		b.Cfn()
 		wg.Done()
 	}()
 
 	wg.Wait()
-	return bootstrapOutputs
+	return outputs
 }
 
-// Deploy stage 2: everything that does not require API gateway
-//
-// In parallel: deploy api-gateway, glue tables, onboarding, frontend, monitoring
-// Returns a map from stack name => outputs
-func gatewayStage(
+// Deploy main stacks in parallel: glue, web, monitoring, appsync, core, cloud security, log analysis
+func deployMainStacks(
 	awsSession *session.Session,
 	settings *config.PantherConfig,
 	accountID string,
 	bootstrapOutputs map[string]string,
-) map[string]map[string]string {
+	gatewayOutputs map[string]string,
+) {
 
 	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
 
-	// Keeping these separate variables prevents concurrency conflicts
-	var webOutputs, gatewayOutputs, glueOutputs, monitoringOutputs map[string]string
 	var wg sync.WaitGroup
 	wg.Add(4)
 
 	sourceBucket := bootstrapOutputs["SourceBucket"]
 
-	// Web server
+	// Appsync
 	go func() {
-		webOutputs = deployFrontend(awsSession, settings, accountID, sourceBucket, bootstrapOutputs)
+		deployTemplate(awsSession, appsyncTemplate, sourceBucket, appsyncStack, map[string]string{
+			"ApiId":          bootstrapOutputs["GraphQLApiId"],
+			"ServiceRole":    bootstrapOutputs["AppsyncServiceRoleArn"],
+			"AnalysisApi":    gatewayOutputs["AnalysisApiEndpoint"],
+			"ComplianceApi":  gatewayOutputs["ComplianceApiEndpoint"],
+			"RemediationApi": gatewayOutputs["RemediationApiEndpoint"],
+			"ResourcesApi":   gatewayOutputs["ResourcesApiEndpoint"],
+		})
 		wg.Done()
 	}()
 
-	// API Gateway
+	// Web server
 	go func() {
-		// TODO: parameters (TracingEnabled)
-		gatewayOutputs = deployTemplate(awsSession, gatewayTemplate, sourceBucket, gatewayStack, nil)
+		deployFrontend(awsSession, settings, accountID, sourceBucket, bootstrapOutputs)
 		wg.Done()
 	}()
 
 	// Athena/Glue
 	go func() {
-		params := map[string]string{"ProcessedDataBucket": bootstrapOutputs["ProcessedDataBucket"]}
-		glueOutputs = deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, params)
+		deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, map[string]string{
+			"ProcessedDataBucket": bootstrapOutputs["ProcessedDataBucket"],
+		})
 
 		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
 		const workgroup = "primary"
@@ -272,22 +269,15 @@ func gatewayStage(
 
 	// Monitoring
 	go func() {
-		params := map[string]string{
+		deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, map[string]string{
 			"AlarmTopicArn":        settings.MonitoringParameterValues.AlarmSNSTopicARN,
 			"AppsyncId":            bootstrapOutputs["GraphQLApiId"],
 			"LoadBalancerFullName": bootstrapOutputs["LoadBalancerFullName"],
-		}
-		monitoringOutputs = deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, params)
+		})
 		wg.Done()
 	}()
 
 	wg.Wait()
-	return map[string]map[string]string{
-		frontendStack:   webOutputs,
-		gatewayStack:    gatewayOutputs,
-		glueStack:       glueOutputs,
-		monitoringStack: monitoringOutputs,
-	}
 }
 
 // Generate the set of deploy parameters for the main application stack.

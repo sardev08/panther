@@ -15,156 +15,97 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: Creates AppSync GraphQLApi
+Description: AppSync data sources and resolvers
+
+# The bare appsync instance is defined in bootstrap.yml so we can get its value sooner in the deploy process.
+# This template adds all the configuration: schema, data sources, resolvers
 
 Parameters:
+  ApiId:
+    Type: String
+    Description: Appsync GraphQL API ID
+  ServiceRole:
+    Type: String
+    Description: Appsync IAM service role ARN
+
   AnalysisApi:
     Type: String
-    Description: API Gateway endpoint for panther-analysis-api
+    Description: API Gateway HTTPS endpoint for panther-analysis-api
   ComplianceApi:
     Type: String
-    Description: API Gateway endpoint for panther-compliance-api
+    Description: API Gateway HTTPS endpoint for panther-compliance-api
   RemediationApi:
     Type: String
-    Description: API Gateway endpoint for panther-remediation-api
+    Description: API Gateway HTTPS endpoint for panther-remediation-api
   ResourcesApi:
     Type: String
-    Description: API Gateway endpoint for panther-resources-api
-  UserPoolId:
-    Type: String
-    Description: Cognito user pool ID
-
-  TracingMode:
-    Type: String
-    Description: Enable XRay tracing on GraphQL queries & mutations
-    Default: ''
-  CloudWatchLogRetentionDays:
-    Type: Number
-    Description: CloudWatch log retention period
-    Default: 365
-
-Conditions:
-  TracingEnabled: !Not [!Equals ['', !Ref TracingMode]]
+    Description: API Gateway HTTPS endpoint for panther-resources-api
 
 Resources:
-  #  LogGroup:
-  #    Type: AWS::Logs::LogGroup
-  #    Properties:
-  #      LogGroupName: !Sub /aws/appsync/apis/${GraphQLApi.ApiId}
-  #      RetentionInDays: !Ref CloudWatchLogRetentionDays
-  #
-  #  GraphQLApi:
-  #    Type: AWS::AppSync::GraphQLApi
-  #    Properties:
-  #      Name: panther-graphql-api
-  #      # <cfndoc>
-  #      # This is the GraphQL endpoint for the Panther UI.
-  #      #
-  #      # Failure Impact
-  #      # * The Panther user interface will show errors.
-  #      # </cfndoc>
-  #      AuthenticationType: AMAZON_COGNITO_USER_POOLS
-  #      UserPoolConfig:
-  #        AwsRegion: !Ref AWS::Region
-  #        UserPoolId: !Ref UserPoolId
-  #        DefaultAction: ALLOW
-  #      LogConfig:
-  #        CloudWatchLogsRoleArn: !GetAtt AppsyncServiceRole.Arn
-  #        FieldLogLevel: ALL
-  #      XrayEnabled: !If [TracingEnabled, True, !Ref 'AWS::NoValue']
-
   GraphQLSchema:
     Type: AWS::AppSync::GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DefinitionS3Location: ../../api/graphql/schema.graphql
-
-  #  AppsyncServiceRole:
-  #    Type: AWS::IAM::Role
-  #    Properties:
-  #      Description: Appsync service role which invokes API lambdas and gateways and writes CloudWatch logs
-  #      AssumeRolePolicyDocument:
-  #        Version: 2012-10-17
-  #        Statement:
-  #          - Effect: Allow
-  #            Action: sts:AssumeRole
-  #            Principal:
-  #              Service: appsync.amazonaws.com
-  #      ManagedPolicyArns:
-  #        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
-  #      Policies:
-  #        - PolicyName: InvokeLegacyApis
-  #          PolicyDocument:
-  #            Version: 2012-10-17
-  #            Statement:
-  #              - Effect: Allow
-  #                Action: lambda:InvokeFunction
-  #                Resource: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-*-api
-  #        - PolicyName: InvokeGatewayApis
-  #          PolicyDocument:
-  #            Statement:
-  #              - Effect: Allow
-  #                Action: execute-api:Invoke
-  #                Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:*
+      ApiId: !Ref ApiId
+      DefinitionS3Location: ../api/graphql/schema.graphql
 
   ########## Data Sources ##########
   AlertsAPILambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherAlertsAPILambda
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       LambdaConfig:
         LambdaFunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-alerts-api
 
   UsersAPILambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherUsersAPILambda
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       LambdaConfig:
         LambdaFunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-users-api
 
   DestinationsAPILambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherDestinationsAPILambda
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       LambdaConfig:
         LambdaFunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-outputs-api
 
   SourceAPILambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherSourceAPILambda
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       LambdaConfig:
         LambdaFunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-source-api
 
   OrganizationAPILambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherOrganizationAPILambda
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       LambdaConfig:
         LambdaFunctionArn: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:panther-organization-api
 
   ResourcesAPIHttpDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherResourcesAPIHttp
       Type: HTTP
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       HttpConfig:
         AuthorizationConfig:
           AuthorizationType: AWS_IAM
@@ -176,10 +117,10 @@ Resources:
   ComplianceAPIHttpDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherComplianceAPIHttp
       Type: HTTP
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       HttpConfig:
         AuthorizationConfig:
           AuthorizationType: AWS_IAM
@@ -191,10 +132,10 @@ Resources:
   AnalysisAPIHttpDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherAnalysisAPIHttp
       Type: HTTP
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       HttpConfig:
         AuthorizationConfig:
           AuthorizationType: AWS_IAM
@@ -206,10 +147,10 @@ Resources:
   RemediationAPIHttpDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       Name: PantherRemediationAPIHttp
       Type: HTTP
-      ServiceRoleArn: !GetAtt AppsyncServiceRole.Arn
+      ServiceRoleArn: !Ref ServiceRole
       HttpConfig:
         AuthorizationConfig:
           AuthorizationType: AWS_IAM
@@ -224,7 +165,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: resetUserPassword
       DataSourceName: !GetAtt UsersAPILambdaDataSource.Name
@@ -249,7 +190,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updateUser
       DataSourceName: !GetAtt UsersAPILambdaDataSource.Name
@@ -272,7 +213,7 @@ Resources:
     Type: 'AWS::AppSync::Resolver'
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: deleteUser
       DataSourceName: !GetAtt UsersAPILambdaDataSource.Name
@@ -297,7 +238,7 @@ Resources:
     Type: 'AWS::AppSync::Resolver'
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: users
       DataSourceName: !GetAtt UsersAPILambdaDataSource.Name
@@ -320,7 +261,7 @@ Resources:
     Type: 'AWS::AppSync::Resolver'
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: inviteUser
       DataSourceName: !GetAtt UsersAPILambdaDataSource.Name
@@ -344,7 +285,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: destination
       DataSourceName: !GetAtt DestinationsAPILambdaDataSource.Name
@@ -369,7 +310,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: destinations
       DataSourceName: !GetAtt DestinationsAPILambdaDataSource.Name
@@ -392,7 +333,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: addDestination
       DataSourceName: !GetAtt DestinationsAPILambdaDataSource.Name
@@ -417,7 +358,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: deleteDestination
       DataSourceName: !GetAtt DestinationsAPILambdaDataSource.Name
@@ -443,7 +384,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updateDestination
       DataSourceName: !GetAtt DestinationsAPILambdaDataSource.Name
@@ -468,7 +409,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: integrations
       DataSourceName: !GetAtt SourceAPILambdaDataSource.Name
@@ -493,7 +434,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: addIntegration
       DataSourceName: !GetAtt SourceAPILambdaDataSource.Name
@@ -529,7 +470,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updateIntegration
       DataSourceName: !GetAtt SourceAPILambdaDataSource.Name
@@ -555,7 +496,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: deleteIntegration
       DataSourceName: !GetAtt SourceAPILambdaDataSource.Name
@@ -580,7 +521,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: generalSettings
       DataSourceName: !GetAtt OrganizationAPILambdaDataSource.Name
@@ -603,7 +544,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updateGeneralSettings
       DataSourceName: !GetAtt OrganizationAPILambdaDataSource.Name
@@ -626,7 +567,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: policies
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -656,7 +597,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: policy
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -686,7 +627,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updatePolicy
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -718,7 +659,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: addPolicy
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -750,7 +691,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: deletePolicy
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -788,7 +729,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: uploadPolicies
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -820,7 +761,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: resources
       DataSourceName: !GetAtt ResourcesAPIHttpDataSource.Name
@@ -851,7 +792,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: resource
       DataSourceName: !GetAtt ResourcesAPIHttpDataSource.Name
@@ -881,7 +822,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: remediateResource
       DataSourceName: !GetAtt RemediationAPIHttpDataSource.Name
@@ -911,7 +852,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: remediations
       DataSourceName: !GetAtt RemediationAPIHttpDataSource.Name
@@ -943,7 +884,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: organizationStats
       DataSourceName: !GetAtt ComplianceAPIHttpDataSource.Name
@@ -973,7 +914,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: resourcesForPolicy
       DataSourceName: !GetAtt ComplianceAPIHttpDataSource.Name
@@ -1003,7 +944,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: policiesForResource
       DataSourceName: !GetAtt ComplianceAPIHttpDataSource.Name
@@ -1033,7 +974,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: suppressPolicies
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1064,7 +1005,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: rules
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1094,7 +1035,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: rule
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1124,7 +1065,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: updateRule
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1156,7 +1097,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: addRule
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1188,7 +1129,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: alerts
       DataSourceName: !GetAtt AlertsAPILambdaDataSource.Name
@@ -1211,7 +1152,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Query
       FieldName: alert
       DataSourceName: !GetAtt AlertsAPILambdaDataSource.Name
@@ -1234,7 +1175,7 @@ Resources:
     Type: AWS::AppSync::Resolver
     DependsOn: GraphQLSchema
     Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
+      ApiId: !Ref ApiId
       TypeName: Mutation
       FieldName: testPolicy
       DataSourceName: !GetAtt AnalysisAPIHttpDataSource.Name
@@ -1259,11 +1200,3 @@ Resources:
         #else
             $util.error($ctx.result.body, "$statusCode", $input)
         #end
-
-Outputs:
-  GraphQLApiEndpoint:
-    Description: The URL to the Appsync GraphQL Endpoint
-    Value: !GetAtt GraphQLApi.GraphQLUrl
-  GraphQLApiId:
-    Description: The id of the Appsync GraphQL Endpoint
-    Value: !GetAtt GraphQLApi.ApiId
