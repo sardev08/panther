@@ -436,7 +436,7 @@ Resources:
   ComplianceApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/internal/compliance/compliance_api/main
+      CodeUri: ../out/bin/internal/compliance/compliance_api/main
       Description: Compliance API
       Environment:
         Variables:
@@ -568,7 +568,7 @@ Resources:
   RemediationApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/internal/compliance/remediation_api/main
+      CodeUri: ../out/bin/internal/compliance/remediation_api/main
       Description: Triggers AWS remediations
       Environment:
         Variables:
@@ -634,7 +634,7 @@ Resources:
   RemediationProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/internal/compliance/remediation_processor/main
+      CodeUri: ../out/bin/internal/compliance/remediation_processor/main
       Description: Process queued remediations
       Environment:
         Variables:
@@ -696,7 +696,7 @@ Resources:
   RemediationFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../internal/compliance/remediation_aws/src
+      CodeUri: ../internal/compliance/remediation_aws/src
       Description: Function that remediates issues with AWS resources
       FunctionName: panther-aws-remediation
       # <cfndoc>
@@ -742,7 +742,7 @@ Resources:
   ResourcesApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/internal/compliance/resources_api/main
+      CodeUri: ../out/bin/internal/compliance/resources_api/main
       Description: Resources API
       Environment:
         Variables:
@@ -871,7 +871,7 @@ Resources:
   ResourceProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../bin/internal/compliance/resource_processor/main
+      CodeUri: ../out/bin/internal/compliance/resource_processor/main
       Description: Scans recently modified resources
       Environment:
         Variables:
@@ -954,7 +954,7 @@ Resources:
   PolicyEngineFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../../internal/compliance/policy_engine
+      CodeUri: ../internal/compliance/policy_engine
       Description: Python Policy Engine
       FunctionName: panther-policy-engine
       # <cfndoc>

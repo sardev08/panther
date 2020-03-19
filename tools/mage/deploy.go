@@ -33,6 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/fatih/color"
 	"github.com/magefile/mage/sh"
 
 	"github.com/panther-labs/panther/pkg/awsathena"
@@ -48,14 +49,18 @@ const (
 	gatewayStack      = "panther-bootstrap2"
 	gatewayTemplate   = apiEmbeddedTemplate
 
-	appsyncStack       = "panther-appsync"
-	appsyncTemplate    = "deployments/appsync.yml"
-	coreStack          = "panther-core"
-	coreTemplate       = "deployments/core.yml"
-	glueStack          = "panther-glue"
-	glueTemplate       = "out/deployments/gluetables.json"
-	monitoringStack    = "panther-monitoring"
-	monitoringTemplate = "deployments/monitoring.yml"
+	appsyncStack        = "panther-appsync"
+	appsyncTemplate     = "deployments/appsync.yml"
+	cloudsecStack       = "panther-cloud-security"
+	cloudsecTemplate    = "deployments/cloud_security.yml"
+	coreStack           = "panther-core"
+	coreTemplate        = "deployments/core.yml"
+	glueStack           = "panther-glue"
+	glueTemplate        = "out/deployments/gluetables.json"
+	logAnalysisStack    = "panther-log-analysis"
+	logAnalysisTemplate = "deployments/log_analysis.yml"
+	monitoringStack     = "panther-monitoring"
+	monitoringTemplate  = "deployments/monitoring.yml"
 
 	// TODO: remove
 	backendStack    = "panther-app"
@@ -118,38 +123,16 @@ func Deploy() {
 
 	// ***** Step 1: bootstrap stacks and build artifacts
 	outputs := bootstrap(awsSession, settings)
-	logger.Info(outputs)
 
 	// ***** Step 2: deploy remaining stacks in parallel
-	// deployMainStacks(awsSession, settings, accountID, outputs)
+	deployMainStacks(awsSession, settings, accountID, outputs)
 
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	//// Deploy prerequisite bucket stack
-	//bucketParams := map[string]string{
-	//	"AccessLogsBucketName": config.BucketsParameterValues.AccessLogsBucketName,
-	//}
-	//bucketOutputs := deployTemplate(awsSession, bucketTemplate, "", bucketStack, bucketParams)
-	//bucket := bucketOutputs["SourceBucketName"]
-	//
-	//// Deploy main application stack
-	//params := getBackendDeployParams(awsSession, &config, bucket, bucketOutputs["LogBucketName"])
-	//backendOutputs := deployTemplate(awsSession, backendTemplate, bucket, backendStack, params)
-	//if err := postDeploySetup(awsSession, backendOutputs, &config); err != nil {
-	//	logger.Fatal(err)
-	//}
-	//
-	//
-	//// Onboard Panther account to Panther
+	// TODO - onboard Panther account to Panther
 	//if config.OnboardParameterValues.OnboardSelf {
 	//	runDeploy(func() { deployOnboard(awsSession, bucket, backendOutputs) })
 	//}
-	//
-	//wg.Wait()
-	//
-	//// Done!
 	logger.Infof("deploy: finished successfully in %s", time.Since(start))
-	//color.Yellow("\nPanther URL = https://%s\n", backendOutputs["LoadBalancerUrl"])
+	color.Yellow("\nPanther URL = https://%s\n", outputs["LoadBalancerUrl"])
 }
 
 // Fail the deploy early if there is a known issue with the user's environment.
@@ -212,7 +195,6 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 	b.Lambda()
 	b.Cfn()
 	wg.Wait()
-	// TODO: we can build the python layer while we are waiting here as well
 
 	// Now that the S3 buckets are in place and swagger specs are embedded, we can deploy the second
 	// bootstrap stack (API gateways and the Python layer).
@@ -240,87 +222,6 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 	}
 
 	return outputs
-}
-
-// Deploy main stacks in parallel: glue, web, monitoring, appsync, core, cloud security, log analysis
-func deployMainStacks(
-	awsSession *session.Session,
-	settings *config.PantherConfig,
-	accountID string,
-	bootstrapOutputs map[string]string,
-	gatewayOutputs map[string]string,
-) {
-
-	// TODO - this might make more sense if goroutines return (stack name, outputs) instead of sync group
-
-	var wg sync.WaitGroup
-	wg.Add(5)
-
-	sourceBucket := bootstrapOutputs["SourceBucket"]
-
-	// Appsync
-	go func() {
-		deployTemplate(awsSession, appsyncTemplate, sourceBucket, appsyncStack, map[string]string{
-			"ApiId":          bootstrapOutputs["GraphQLApiId"],
-			"ServiceRole":    bootstrapOutputs["AppsyncServiceRoleArn"],
-			"AnalysisApi":    gatewayOutputs["AnalysisApiEndpoint"],
-			"ComplianceApi":  gatewayOutputs["ComplianceApiEndpoint"],
-			"RemediationApi": gatewayOutputs["RemediationApiEndpoint"],
-			"ResourcesApi":   gatewayOutputs["ResourcesApiEndpoint"],
-		})
-		wg.Done()
-	}()
-
-	// Core
-	go func() {
-		deployTemplate(awsSession, coreTemplate, sourceBucket, coreStack, map[string]string{
-			"AppDomainURL":           bootstrapOutputs["LoadBalancerUrl"],
-			"AnalysisVersionsBucket": bootstrapOutputs["AnalysisVersionsBucket"],
-			"AnalysisApiId":          gatewayOutputs["AnalysisApiId"],
-			"ComplianceApiId":        gatewayOutputs["ComplianceApiId"],
-			"SqsKeyId":               bootstrapOutputs["QueueEncryptionKeyId"],
-			"UserPoolId":             bootstrapOutputs["UserPoolId"],
-			// TODO: optional params from config file
-		})
-		wg.Done()
-	}()
-
-	// Web server
-	go func() {
-		deployFrontend(awsSession, settings, accountID, sourceBucket, bootstrapOutputs)
-		wg.Done()
-	}()
-
-	// Athena/Glue
-	go func() {
-		deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, map[string]string{
-			"ProcessedDataBucket": bootstrapOutputs["ProcessedDataBucket"],
-		})
-
-		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
-		const workgroup = "primary"
-		athenaBucket := bootstrapOutputs["AthenaResultsBucket"]
-		if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
-			logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
-		}
-		if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
-			logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
-		}
-
-		wg.Done()
-	}()
-
-	// Monitoring
-	go func() {
-		deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, map[string]string{
-			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
-			"AppsyncId":            bootstrapOutputs["GraphQLApiId"],
-			"LoadBalancerFullName": bootstrapOutputs["LoadBalancerFullName"],
-		})
-		wg.Done()
-	}()
-
-	wg.Wait()
 }
 
 // Upload custom Python analysis layer to S3 (if it isn't already), returning version ID
@@ -365,6 +266,124 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 		logger.Fatalf("failed to upload %s to S3: %v", layerZipfile, err)
 	}
 	return *result.VersionID
+}
+
+// Deploy main stacks in parallel: appsync, cloudsec, core, glue, log analysis, monitoring, web
+func deployMainStacks(awsSession *session.Session, settings *config.PantherConfig, accountID string, outputs map[string]string) {
+	finishedStacks := make(chan string)
+	sourceBucket := outputs["SourceBucket"]
+
+	// Appsync
+	go func(result chan string) {
+		deployTemplate(awsSession, appsyncTemplate, sourceBucket, appsyncStack, map[string]string{
+			"ApiId":          outputs["GraphQLApiId"],
+			"ServiceRole":    outputs["AppsyncServiceRoleArn"],
+			"AnalysisApi":    outputs["AnalysisApiEndpoint"],
+			"ComplianceApi":  outputs["ComplianceApiEndpoint"],
+			"RemediationApi": outputs["RemediationApiEndpoint"],
+			"ResourcesApi":   outputs["ResourcesApiEndpoint"],
+		})
+		result <- appsyncStack
+	}(finishedStacks)
+
+	// Cloud security
+	go func(result chan string) {
+		deployTemplate(awsSession, cloudsecTemplate, sourceBucket, cloudsecStack, map[string]string{
+			"AnalysisApiId":         outputs["AnalysisApiId"],
+			"ComplianceApiId":       outputs["ComplianceApiId"],
+			"RemediationApiId":      outputs["RemediationApiId"],
+			"ResourcesApiId":        outputs["ResourcesApiId"],
+			"ProcessedDataTopicArn": outputs["ProcessedDataTopicArn"],
+			"ProcessedDataBucket":   outputs["ProcessedDataBucket"],
+			"PythonLayerVersionArn": outputs["PythonLayerVersionArn"],
+			"SqsKeyId":              outputs["QueueEncryptionKeyId"],
+
+			"CloudWatchLogRetentionDays": strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
+			"Debug":                      strconv.FormatBool(settings.Monitoring.Debug),
+			"LayerVersionArns":           settings.Infra.BaseLayerVersionArns,
+			"TracingMode":                settings.Monitoring.TracingMode,
+
+			"AuditRoleName":       auditRole,
+			"RemediationRoleName": remediationRole,
+		})
+		result <- cloudsecStack
+	}(finishedStacks)
+
+	// Core
+	go func(result chan string) {
+		deployTemplate(awsSession, coreTemplate, sourceBucket, coreStack, map[string]string{
+			"AppDomainURL":           outputs["LoadBalancerUrl"],
+			"AnalysisVersionsBucket": outputs["AnalysisVersionsBucket"],
+			"AnalysisApiId":          outputs["AnalysisApiId"],
+			"ComplianceApiId":        outputs["ComplianceApiId"],
+			"SqsKeyId":               outputs["QueueEncryptionKeyId"],
+			"UserPoolId":             outputs["UserPoolId"],
+
+			"CloudWatchLogRetentionDays": strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
+			"Debug":                      strconv.FormatBool(settings.Monitoring.Debug),
+			"LayerVersionArns":           settings.Infra.BaseLayerVersionArns,
+			"TracingMode":                settings.Monitoring.TracingMode,
+		})
+		result <- coreStack
+	}(finishedStacks)
+
+	// Glue
+	go func(result chan string) {
+		deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, map[string]string{
+			"ProcessedDataBucket": outputs["ProcessedDataBucket"],
+		})
+
+		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
+		const workgroup = "primary"
+		athenaBucket := outputs["AthenaResultsBucket"]
+		if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
+			logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
+		}
+		if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
+			logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
+		}
+
+		result <- glueStack
+	}(finishedStacks)
+
+	// Log analysis
+	go func(result chan string) {
+		deployTemplate(awsSession, logAnalysisTemplate, sourceBucket, logAnalysisStack, map[string]string{
+			"AnalysisApiId":         outputs["AnalysisApiId"],
+			"ProcessedDataBucket":   outputs["ProcessedDataBucket"],
+			"ProcessedDataTopicArn": outputs["ProcessedDataTopicArn"],
+			"PythonLayerVersionArn": outputs["PythonLayerVersionArn"],
+			"SqsKeyId":              outputs["QueueEncryptionKeyId"],
+
+			"CloudWatchLogRetentionDays":   strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
+			"Debug":                        strconv.FormatBool(settings.Monitoring.Debug),
+			"LayerVersionArns":             settings.Infra.BaseLayerVersionArns,
+			"LogProcessorLambdaMemorySize": strconv.Itoa(settings.Infra.LogProcessorLambdaMemorySize),
+			"TracingMode":                  settings.Monitoring.TracingMode,
+		})
+		result <- coreStack
+	}(finishedStacks)
+
+	// Monitoring
+	go func(result chan string) {
+		deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, map[string]string{
+			"AppsyncId":            outputs["GraphQLApiId"],
+			"LoadBalancerFullName": outputs["LoadBalancerFullName"],
+			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
+		})
+		result <- monitoringStack
+	}(finishedStacks)
+
+	// Web server
+	go func(result chan string) {
+		deployFrontend(awsSession, settings, accountID, sourceBucket, outputs)
+		result <- frontendStack
+	}(finishedStacks)
+
+	// Wait for stacks to finish
+	for i := 1; i <= 7; i++ {
+		logger.Infof("    √ stack %s finished (%d/7)", <-finishedStacks, i)
+	}
 }
 
 //// After the main stack is deployed, we need to make several manual API calls
