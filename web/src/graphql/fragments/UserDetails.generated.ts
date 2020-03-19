@@ -16,4 +16,24 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export { default } from './BaseUserForm';
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
+import * as Types from '../../../__generated__/schema';
+
+import gql from 'graphql-tag';
+
+export type UserDetails = Pick<
+  Types.User,
+  'id' | 'givenName' | 'familyName' | 'email' | 'createdAt' | 'status'
+>;
+
+export const UserDetails = gql`
+  fragment UserDetails on User {
+    id
+    givenName
+    familyName
+    email
+    createdAt
+    status
+  }
+`;

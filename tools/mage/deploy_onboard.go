@@ -32,7 +32,7 @@ const (
 	onboardStack    = "panther-app-onboard"
 	onboardTemplate = "deployments/onboard.yml"
 
-	// CloudSec IAM Roles, DO NOT CHANGE! panther-compliance-iam.yml CF depends on these names
+	// CloudSec IAM Roles, DO NOT CHANGE! panther-cloudsec-iam.yml CF depends on these names
 	auditRole       = "PantherAuditRole"
 	remediationRole = "PantherRemediationRole"
 
