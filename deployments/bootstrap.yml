@@ -546,6 +546,7 @@ Resources:
       KmsMasterKeyId: !Ref QueueEncryptionKey
 
 Outputs:
+  # S3
   AnalysisVersionsBucket:
     Description: S3 bucket name for analysis-api versioning
     Value: !Ref AnalysisVersions
@@ -559,24 +560,43 @@ Outputs:
     Description: S3 bucket name for Panther CloudFormation packaging
     Value: !Ref Source
 
-  QueueEncryptionKeyId:
-    Description: KMS key for encrypting Panther SQS queues
-    Value: !Ref QueueEncryptionKey
+  # Networking + elb
+  SubnetOneId:
+    Description: Public subnet one
+    Value: !Ref PublicSubnetOne
+  SubnetTwoId:
+    Description: Public subnet two
+    Value: !Ref PublicSubnetTwo
   LoadBalancerFullName:
     Description: Web load balancer full resource name
     Value: !GetAtt PublicLoadBalancer.LoadBalancerFullName
+  LoadBalancerTargetGroup:
+    Description: Web load balancer distribution target group ARN
+    Value: !Ref TargetGroup
   LoadBalancerUrl:
     Description: Panther URL - application load balancer or custom domain
     Value: !If [UseCustomDomain, !Ref CustomDomain, !GetAtt PublicLoadBalancer.DNSName]
+  WebSecurityGroup:
+    Description: Public web app security group
+    Value: !Ref WebApplicationServerSecurityGroup
+
+  # Appsync
   GraphQLApiEndpoint:
     Description: The URL to the Appsync GraphQL Endpoint
     Value: !GetAtt GraphQLApi.GraphQLUrl
   GraphQLApiId:
     Description: The id of the Appsync GraphQL Endpoint
     Value: !GetAtt GraphQLApi.ApiId
+
+  # Cognito
   UserPoolId:
     Description: Cognito user pool ID
     Value: !Ref UserPool
   AppClientId:
     Description: Cognito user pool client ID
     Value: !Ref AppClient
+
+  # SQS
+  QueueEncryptionKeyId:
+    Description: KMS key for encrypting Panther SQS queues
+    Value: !Ref QueueEncryptionKey
