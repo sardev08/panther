@@ -52,28 +52,33 @@ import (
 )
 
 const (
-	// CloudFormation templates + stacks
+	// Bootstrap stacks
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
 	gatewayStack      = "panther-bootstrap2"
 	gatewayTemplate   = apiEmbeddedTemplate
 
-	appsyncStack        = "panther-appsync"
-	appsyncTemplate     = "deployments/appsync.yml"
-	cloudsecStack       = "panther-cloud-security"
-	cloudsecTemplate    = "deployments/cloud_security.yml"
-	coreStack           = "panther-core"
-	coreTemplate        = "deployments/core.yml"
-	frontendStack       = "panther-web"
-	frontendTemplate    = "deployments/web_server.yml"
-	glueStack           = "panther-glue"
-	glueTemplate        = "out/deployments/gluetables.json"
-	logAnalysisStack    = "panther-log-analysis"
-	logAnalysisTemplate = "deployments/log_analysis.yml"
-	monitoringStack     = "panther-monitoring"
-	monitoringTemplate  = "deployments/monitoring.yml"
-	onboardStack        = "panther-app-onboard"
-	onboardTemplate     = "deployments/onboard.yml"
+	// Main stacks
+	alarmsStack          = "panther-cw-alarms"
+	alarmsTemplate       = "deployments/alarms.yml"
+	appsyncStack         = "panther-appsync"
+	appsyncTemplate      = "deployments/appsync.yml"
+	cloudsecStack        = "panther-cloud-security"
+	cloudsecTemplate     = "deployments/cloud_security.yml"
+	coreStack            = "panther-core"
+	coreTemplate         = "deployments/core.yml"
+	dashboardStack       = "panther-cw-dashboards"
+	dashboardTemplate    = "out/deployments/monitoring/dashboards.json"
+	frontendStack        = "panther-web"
+	frontendTemplate     = "deployments/web_server.yml"
+	glueStack            = "panther-glue"
+	glueTemplate         = "out/deployments/gluetables.json"
+	logAnalysisStack     = "panther-log-analysis"
+	logAnalysisTemplate  = "deployments/log_analysis.yml"
+	metricFilterStack    = "panther-cw-metric-filters"
+	metricFilterTemplate = "out/deployments/monitoring/metrics.json"
+	onboardStack         = "panther-app-onboard"
+	onboardTemplate      = "deployments/onboard.yml"
 
 	// Python layer
 	layerSourceDir   = "out/pip/analysis/python"
@@ -135,8 +140,10 @@ func Deploy() {
 	deployMainStacks(awsSession, settings, accountID, outputs)
 
 	// ***** Step 3: first-time setup if needed
-	// TODO - put prompt at the beginning, not the end of the deploy
-	if err := postDeploySetup(awsSession, settings, outputs); err != nil {
+	if err := initializeAnalysisSets(awsSession, outputs["AnalysisApiEndpoint"], settings); err != nil {
+		logger.Fatal(err)
+	}
+	if err := inviteFirstUser(awsSession); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -194,6 +201,21 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 		}
 
 		outputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)
+
+		// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
+		userPoolID := outputs["UserPoolId"]
+		logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
+		_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
+			MfaConfiguration: aws.String("ON"),
+			SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
+				Enabled: aws.Bool(true),
+			},
+			UserPoolId: &userPoolID,
+		})
+		if err != nil {
+			logger.Fatalf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
+		}
+
 		wg.Done()
 	}()
 
@@ -276,13 +298,25 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 	return *result.VersionID
 }
 
-// Deploy main stacks as parallelized as possible
+// Deploy main stacks
 //
-// appsync, cloudsec, core, glue, log analysis, web
-// monitoring, onboarding
+// In parallel: alarms, appsync, cloudsec, core, dashboards, glue, log analysis, web
+// Then metric-filters and onboarding at the end
+//
+// nolint: funlen
 func deployMainStacks(awsSession *session.Session, settings *config.PantherConfig, accountID string, outputs map[string]string) {
 	finishedStacks := make(chan string)
 	sourceBucket := outputs["SourceBucket"]
+
+	// Alarms
+	go func(result chan string) {
+		deployTemplate(awsSession, alarmsTemplate, sourceBucket, alarmsStack, map[string]string{
+			"AppsyncId":            outputs["GraphQLApiId"],
+			"LoadBalancerFullName": outputs["LoadBalancerFullName"],
+			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
+		})
+		result <- alarmsStack
+	}(finishedStacks)
 
 	// Appsync
 	go func(result chan string) {
@@ -339,6 +373,12 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 		result <- coreStack
 	}(finishedStacks)
 
+	// Dashboards
+	go func(result chan string) {
+		deployTemplate(awsSession, dashboardTemplate, sourceBucket, dashboardStack, nil)
+		result <- dashboardStack
+	}(finishedStacks)
+
 	// Glue
 	go func(result chan string) {
 		deployGlue(awsSession, outputs)
@@ -370,32 +410,27 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Wait for stacks to finish
-	for i := 1; i <= 6; i++ {
-		logger.Infof("    √ stack %s finished (%d/8)", <-finishedStacks, i)
+	for i := 1; i <= 8; i++ {
+		logger.Infof("    √ stack %s finished (%d/10)", <-finishedStacks, i)
 	}
 
-	// Monitoring has to be deployed after all log groups have been created
-	// TODO - alarms take a long time, maybe split monitoring stack into dashboards/alarms/metrics
+	// Metric filters have to be deployed after all log groups have been created
 	go func(result chan string) {
-		deployTemplate(awsSession, monitoringTemplate, outputs["SourceBucket"], monitoringStack, map[string]string{
-			"AppsyncId":            outputs["GraphQLApiId"],
-			"LoadBalancerFullName": outputs["LoadBalancerFullName"],
-			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
-		})
-		result <- monitoringStack
+		deployTemplate(awsSession, metricFilterTemplate, sourceBucket, metricFilterStack, nil)
+		result <- metricFilterStack
 	}(finishedStacks)
 
 	// Onboard Panther to scan itself
 	go func(result chan string) {
 		if settings.Setup.OnboardSelf {
-			deployOnboard(awsSession, accountID, outputs["SourceBucket"])
+			deployOnboard(awsSession, accountID, sourceBucket)
 		}
 		result <- onboardStack
 	}(finishedStacks)
 
 	// Wait for onboarding and monitoring to finish
-	for i := 7; i <= 8; i++ {
-		logger.Infof("    √ stack %s finished (%d/8)", <-finishedStacks, i)
+	for i := 9; i <= 10; i++ {
+		logger.Infof("    √ stack %s finished (%d/10)", <-finishedStacks, i)
 	}
 }
 
@@ -413,29 +448,6 @@ func deployGlue(awsSession *session.Session, outputs map[string]string) {
 	if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
 		logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
 	}
-}
-
-// After the main stack is deployed, we need to make several manual API calls
-func postDeploySetup(awsSession *session.Session, settings *config.PantherConfig, outputs map[string]string) error {
-	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
-	userPoolID := outputs["UserPoolId"]
-	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
-	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
-		MfaConfiguration: aws.String("ON"),
-		SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
-			Enabled: aws.Bool(true),
-		},
-		UserPoolId: &userPoolID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
-	}
-
-	if err := inviteFirstUser(awsSession); err != nil {
-		return err
-	}
-
-	return initializeAnalysisSets(awsSession, outputs["AnalysisApiEndpoint"], settings)
 }
 
 // If the users list is empty (e.g. on the initial deploy), create the first user.

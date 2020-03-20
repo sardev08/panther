@@ -595,7 +595,7 @@ Resources:
           ANALYSIS_API_FQDN: !Sub '${AnalysisApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
           ANALYSIS_API_PATH: v1
           DEBUG: !Ref Debug
-          ALERTS_QUEUE: panther-log-alert-notifications-queue # TODO: this doesn't show up anywhere else in the codebase?
+          ALERTS_QUEUE: panther-log-alert-notifications-queue
           S3_BUCKET: !Ref ProcessedDataBucket
           NOTIFICATIONS_TOPIC: !Ref ProcessedDataTopicArn
           ALERTS_DEDUP_TABLE: !Ref AlertsDedup

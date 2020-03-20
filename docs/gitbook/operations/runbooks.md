@@ -261,13 +261,13 @@ This lambda executes the user-defined policies against infrastructure events.
 This topic triggers the log analysis flow
 
 ## panther-remediation-api
-The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
-
-## panther-remediation-api
 The `panther-remediation-api` lambda triggers AWS remediations.
 
  Failure Impact
  * Failure of this lambda will impact performing remediations and infrastructure will remain in violation of policy.
+
+## panther-remediation-api
+The `panther-remediation-api` API Gateway calls the `panther-remediation-api` lambda.
 
 ## panther-remediation-processor
 The `panther-remediation-processor` lambda processes queued remediations
@@ -309,14 +309,14 @@ This table holds descriptions of the AWS resources in all accounts being monitor
  * The Panther user interface could be impacted.
 
 ## panther-resources-api
+The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
+
+## panther-resources-api
 The `panther-resources-api` lambda implements the resources API.
 
  Failure Impact
  * Infrastructure scans may be impacted when updating resources.
  * The Panther user interface for display of resources.
-
-## panther-resources-api
-The `panther-resources-api` API Gateway calls the `panther-resources-api` lambda.
 
 ## panther-resources-queue
 This sqs queue has events from recently changed infrastructure.

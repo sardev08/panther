@@ -17,6 +17,18 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: The very first Panther stack - static resources which don't require S3 for deployment
 
+# This stack has resources which take a long time or have generated IDs that we need.
+# The idea is to build such resources as early as possible to maximize parallelism later.
+#
+# Since this is the very first stack, it must be < 51,200 bytes and not contain any
+# code source or nested stacks (which require packaging in S3).
+#
+# This stack includes:
+#   - All S3 buckets
+#   - All KMS keys
+#   - All web networking
+#   - The cognito user pool and appsync API
+
 Parameters:
   # Required
   CertificateArn:

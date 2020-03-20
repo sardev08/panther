@@ -81,7 +81,7 @@ Web:
   # If not specified, a self signed certificate is created automatically.
   # WARNING: SELF SIGNED CERTIFICATES ARE NOT SAFE TO USE IN PRODUCTION, PLEASE
   # PROVIDE A CERTIFICATE FOR PRODUCTION USE
-  CertificateArn: 'arn:aws:acm:us-west-2:101802775469:certificate/6e51b91b-0d7d-4592-89a3-c113c78e3ab3'
+  CertificateArn: ''
 
   # Domain that you own and have configured to alias to the default load balancer URL
   #
