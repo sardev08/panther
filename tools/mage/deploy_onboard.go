@@ -64,8 +64,8 @@ func deployOnboardTemplate(awsSession *session.Session, settings *config.Panther
 	}
 
 	// GD is account wide, not regional. Test if some other region has already enabled GD.
-	if settings.OnboardParameterValues.EnableGuardDuty && guardDutyEnabled(awsSession) {
-		logger.Info("deploy: Guard Duty is already enabled for this account")
+	if guardDutyEnabledByAnotherDeployment(awsSession, settings) {
+		logger.Info("deploy: Guard Duty is already enabled for this account by another Panther deployment")
 		settings.OnboardParameterValues.EnableGuardDuty = false
 	}
 
@@ -194,18 +194,21 @@ func configureLogProcessingUsingAPIs(awsSession *session.Session, settings *conf
 	}
 }
 
-func guardDutyEnabled(awsSession *session.Session) bool {
+func guardDutyEnabledByAnotherDeployment(awsSession *session.Session, settings *config.PantherConfig) bool {
+	if !settings.OnboardParameterValues.EnableGuardDuty {
+		return false
+	}
 	gdClient := guardduty.New(awsSession)
 	input := &guardduty.ListDetectorsInput{}
 	output, err := gdClient.ListDetectors(input)
 	if err != nil {
-		logger.Fatalf("unable to check guard duty: %v", err)
+		logger.Fatalf("deploy: unable to check guard duty: %v", err)
 	}
 	if len(output.DetectorIds) == 0 {
 		return false
 	}
 	if len(output.DetectorIds) != 1 {
-		logger.Fatalf("unexpected number of guard duty detectors: %d", len(output.DetectorIds))
+		logger.Fatalf("deploy: unexpected number of guard duty detectors: %d", len(output.DetectorIds))
 	}
 	// we need to check that it is THIS region's stack the enabled it
 	_, onboardOutput, err := describeStack(cloudformation.New(awsSession), onboardStack)
@@ -213,9 +216,10 @@ func guardDutyEnabled(awsSession *session.Session) bool {
 		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == cloudformation.ErrCodeStackSetNotFoundException {
 			return false // not deployed anything yet
 		}
-		logger.Fatalf("cannot check onboard stack: %v", err)
+		logger.Fatalf("cannot check stack %s: %v", onboardStack, err)
 	}
-	return onboardOutput["GuardDutyDetectorId"] != ""
+	// if my stack has no reference, then it must have been enabled by another deployment
+	return len(onboardOutput) == 0 || onboardOutput["GuardDutyDetectorId"] == ""
 }
 
 func configureLogProcessingGuardDuty(awsSession *session.Session, settings *config.PantherConfig,
