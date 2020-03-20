@@ -63,9 +63,10 @@ func deployOnboardTemplate(awsSession *session.Session, settings *config.Panther
 		logger.Info("deploy: enabling Guard Duty in Panther account (see panther_config.yml)")
 	}
 
+
 	// GD is account wide, not regional. Test if some other region has already enabled GD.
-	if guardDutyEnabledByAnotherDeployment(awsSession, settings) {
-		logger.Info("deploy: Guard Duty is already enabled for this account by another Panther deployment")
+	if guardDutyEnabledOutsidePanther(awsSession, settings) {
+		logger.Info("deploy: Guard Duty is already enabled for this account (not by Panther)")
 		settings.OnboardParameterValues.EnableGuardDuty = false
 	}
 
@@ -194,7 +195,7 @@ func configureLogProcessingUsingAPIs(awsSession *session.Session, settings *conf
 	}
 }
 
-func guardDutyEnabledByAnotherDeployment(awsSession *session.Session, settings *config.PantherConfig) bool {
+func guardDutyEnabledOutsidePanther(awsSession *session.Session, settings *config.PantherConfig) bool {
 	if !settings.OnboardParameterValues.EnableGuardDuty {
 		return false
 	}
@@ -204,19 +205,16 @@ func guardDutyEnabledByAnotherDeployment(awsSession *session.Session, settings *
 	if err != nil {
 		logger.Fatalf("deploy: unable to check guard duty: %v", err)
 	}
-	if len(output.DetectorIds) == 0 {
-		return false
-	}
 	if len(output.DetectorIds) != 1 {
-		logger.Fatalf("deploy: unexpected number of guard duty detectors: %d", len(output.DetectorIds))
+		return false  // we only make 1
 	}
 	// we need to check that it is THIS region's stack the enabled it
 	_, onboardOutput, err := describeStack(cloudformation.New(awsSession), onboardStack)
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == cloudformation.ErrCodeStackSetNotFoundException {
-			return false // not deployed anything yet
+			return true // not deployed anything yet in this region BUT it is enabled, must be another deployment
 		}
-		logger.Fatalf("cannot check stack %s: %v", onboardStack, err)
+		logger.Fatalf("deploy: cannot check stack %s: %v", onboardStack, err)
 	}
 	// if my stack has no reference, then it must have been enabled by another deployment
 	return len(onboardOutput) == 0 || onboardOutput["GuardDutyDetectorId"] == ""
