@@ -44,7 +44,7 @@ Resources:
         MasterAccountRegion: !Ref AWS::Region
         DeployRemediation: 'true'
         DeployCloudWatchEventSetup: 'true'
-      TemplateURL: auxiliary/cloudformation/panther-compliance-iam.yml
+      TemplateURL: auxiliary/cloudformation/panther-cloudsec-iam.yml
   StackSetAdminRole:
     Type: AWS::CloudFormation::Stack
     Properties:

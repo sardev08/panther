@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -29,7 +30,7 @@ export type PolicyDetailsVariables = {
 };
 
 export type PolicyDetails = {
-  policy: Types.Maybe<
+  policy?: Types.Maybe<
     Pick<
       Types.PolicyDetails,
       | 'autoRemediationId'
@@ -49,8 +50,8 @@ export type PolicyDetails = {
       | 'tags'
     >
   >;
-  resourcesForPolicy: Types.Maybe<{
-    items: Types.Maybe<
+  resourcesForPolicy?: Types.Maybe<{
+    items?: Types.Maybe<
       Array<
         Types.Maybe<
           Pick<
@@ -66,13 +67,15 @@ export type PolicyDetails = {
         >
       >
     >;
-    paging: Types.Maybe<Pick<Types.PagingData, 'totalItems' | 'totalPages' | 'thisPage'>>;
-    totals: Types.Maybe<{
-      active: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
-      suppressed: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
+    paging?: Types.Maybe<Pick<Types.PagingData, 'totalItems' | 'totalPages' | 'thisPage'>>;
+    totals?: Types.Maybe<{
+      active?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
+      suppressed?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
     }>;
   }>;
-  integrations: Types.Maybe<Array<Pick<Types.Integration, 'integrationId' | 'integrationLabel'>>>;
+  listComplianceIntegrations: Array<
+    Types.Maybe<Pick<Types.ComplianceIntegration, 'integrationId' | 'integrationLabel'>>
+  >;
 };
 
 export const PolicyDetailsDocument = gql`
@@ -125,7 +128,7 @@ export const PolicyDetailsDocument = gql`
         }
       }
     }
-    integrations(input: { integrationType: "aws-scan" }) {
+    listComplianceIntegrations {
       integrationId
       integrationLabel
     }

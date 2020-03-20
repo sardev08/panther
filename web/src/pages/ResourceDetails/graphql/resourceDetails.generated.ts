@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -29,20 +30,14 @@ export type ResourceDetailsVariables = {
 };
 
 export type ResourceDetails = {
-  resource: Types.Maybe<
+  resource?: Types.Maybe<
     Pick<
       Types.ResourceDetails,
-      | 'lastModified'
-      | 'type'
-      | 'integrationId'
-      | 'integrationType'
-      | 'complianceStatus'
-      | 'id'
-      | 'attributes'
+      'lastModified' | 'type' | 'integrationId' | 'complianceStatus' | 'id' | 'attributes'
     >
   >;
-  policiesForResource: Types.Maybe<{
-    items: Types.Maybe<
+  policiesForResource?: Types.Maybe<{
+    items?: Types.Maybe<
       Array<
         Types.Maybe<
           Pick<
@@ -52,13 +47,15 @@ export type ResourceDetails = {
         >
       >
     >;
-    paging: Types.Maybe<Pick<Types.PagingData, 'totalItems' | 'totalPages' | 'thisPage'>>;
-    totals: Types.Maybe<{
-      active: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
-      suppressed: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
+    paging?: Types.Maybe<Pick<Types.PagingData, 'totalItems' | 'totalPages' | 'thisPage'>>;
+    totals?: Types.Maybe<{
+      active?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
+      suppressed?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
     }>;
   }>;
-  integrations: Types.Maybe<Array<Pick<Types.Integration, 'integrationLabel' | 'integrationId'>>>;
+  listComplianceIntegrations: Array<
+    Types.Maybe<Pick<Types.ComplianceIntegration, 'integrationLabel' | 'integrationId'>>
+  >;
 };
 
 export const ResourceDetailsDocument = gql`
@@ -70,7 +67,6 @@ export const ResourceDetailsDocument = gql`
       lastModified
       type
       integrationId
-      integrationType
       complianceStatus
       id
       attributes
@@ -102,7 +98,7 @@ export const ResourceDetailsDocument = gql`
         }
       }
     }
-    integrations(input: { integrationType: "aws-scan" }) {
+    listComplianceIntegrations {
       integrationLabel
       integrationId
     }

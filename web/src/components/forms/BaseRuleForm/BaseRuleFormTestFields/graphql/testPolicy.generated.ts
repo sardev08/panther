@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -28,9 +29,9 @@ export type TestPolicyVariables = {
 };
 
 export type TestPolicy = {
-  testPolicy: Types.Maybe<
+  testPolicy?: Types.Maybe<
     Pick<Types.TestPolicyResponse, 'testSummary' | 'testsPassed' | 'testsFailed'> & {
-      testsErrored: Types.Maybe<
+      testsErrored?: Types.Maybe<
         Array<Types.Maybe<Pick<Types.PolicyUnitTestError, 'errorMessage' | 'name'>>>
       >;
     }

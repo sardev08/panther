@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -29,7 +30,7 @@ export type RuleDetailsVariables = {
 };
 
 export type RuleDetails = {
-  rule: Types.Maybe<
+  rule?: Types.Maybe<
     Pick<
       Types.RuleDetails,
       | 'createdAt'
@@ -45,7 +46,7 @@ export type RuleDetails = {
       | 'tags'
     >
   >;
-  alerts: Types.Maybe<{
+  alerts?: Types.Maybe<{
     alertSummaries: Array<Types.Maybe<Pick<Types.AlertSummary, 'alertId' | 'creationTime'>>>;
   }>;
 };

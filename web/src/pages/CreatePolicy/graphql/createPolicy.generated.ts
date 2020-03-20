@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -28,7 +29,7 @@ export type CreatePolicyVariables = {
 };
 
 export type CreatePolicy = {
-  addPolicy: Types.Maybe<
+  addPolicy?: Types.Maybe<
     Pick<
       Types.PolicyDetails,
       | 'autoRemediationId'
@@ -45,7 +46,7 @@ export type CreatePolicy = {
       | 'tags'
       | 'body'
     > & {
-      tests: Types.Maybe<
+      tests?: Types.Maybe<
         Array<
           Types.Maybe<
             Pick<Types.PolicyUnitTest, 'expectedResult' | 'name' | 'resource' | 'resourceType'>

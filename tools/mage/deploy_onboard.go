@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	"github.com/panther-labs/panther/api/lambda/source/models"
+	"github.com/panther-labs/panther/tools/config"
 )
 
 const (
@@ -48,20 +49,20 @@ const (
 )
 
 // onboard Panther to monitor Panther account
-func deployOnboard(awsSession *session.Session, config *PantherConfig, bucketOutputs, backendOutputs map[string]string) {
-	deployOnboardTemplate(awsSession, config, bucketOutputs)
+func deployOnboard(awsSession *session.Session, settings *config.PantherConfig, bucketOutputs, backendOutputs map[string]string) {
+	deployOnboardTemplate(awsSession, settings, bucketOutputs)
 	registerPantherAccount(awsSession, backendOutputs["AWSAccountId"]) // this MUST follow the CloudSec roles being deployed
 	deployRealTimeStackSet(awsSession, backendOutputs["AWSAccountId"])
 }
 
-func deployOnboardTemplate(awsSession *session.Session, config *PantherConfig, bucketOutputs map[string]string) {
+func deployOnboardTemplate(awsSession *session.Session, settings *config.PantherConfig, bucketOutputs map[string]string) {
 	params := map[string]string{
 		"AuditLogsBucket":  bucketOutputs["AuditLogsBucket"],
-		"EnableCloudTrail": strconv.FormatBool(config.OnboardParameterValues.EnableCloudTrail),
-		"EnableGuardDuty":  strconv.FormatBool(config.OnboardParameterValues.EnableGuardDuty),
+		"EnableCloudTrail": strconv.FormatBool(settings.OnboardParameterValues.EnableCloudTrail),
+		"EnableGuardDuty":  strconv.FormatBool(settings.OnboardParameterValues.EnableGuardDuty),
 	}
 	onboardOutputs := deployTemplate(awsSession, onboardTemplate, bucketOutputs["SourceBucketName"], onboardStack, params)
-	configureLogProcessingUsingAPIs(awsSession, config, bucketOutputs, onboardOutputs)
+	configureLogProcessingUsingAPIs(awsSession, settings, bucketOutputs, onboardOutputs)
 }
 
 func registerPantherAccount(awsSession *session.Session, pantherAccountID string) {
@@ -80,19 +81,6 @@ func registerPantherAccount(awsSession *session.Session, pantherAccountID string
 					ScanIntervalMins: aws.Int(1440),
 					UserID:           aws.String(mageUserID),
 				},
-			},
-		},
-	}
-	if err := invokeLambda(awsSession, "panther-source-api", apiInput, nil); err != nil {
-		logger.Fatalf("error calling lambda to register account for cloud security: %v", err)
-	}
-
-	// log processing
-	apiInput = struct {
-		PutIntegration *models.PutIntegrationInput
-	}{
-		&models.PutIntegrationInput{
-			Integrations: []*models.PutIntegrationSettings{
 				{
 					AWSAccountID:     aws.String(pantherAccountID),
 					IntegrationLabel: aws.String("Panther Log Processing"),
@@ -103,7 +91,7 @@ func registerPantherAccount(awsSession *session.Session, pantherAccountID string
 		},
 	}
 	if err := invokeLambda(awsSession, "panther-source-api", apiInput, nil); err != nil {
-		logger.Fatalf("error calling lambda to register account for log processing: %v", err)
+		logger.Fatalf("error calling lambda to register account: %v", err)
 	}
 }
 
@@ -164,11 +152,13 @@ func deployRealTimeStackSet(awsSession *session.Session, pantherAccountID string
 	}
 }
 
-func configureLogProcessingUsingAPIs(awsSession *session.Session, config *PantherConfig, bucketOutputs, onboardOutputs map[string]string) {
-	// currently GuardDuty does not support this in CF
-	configureLogProcessingGuardDuty(awsSession, config, bucketOutputs, onboardOutputs)
+func configureLogProcessingUsingAPIs(awsSession *session.Session, settings *config.PantherConfig,
+	bucketOutputs, onboardOutputs map[string]string) {
 
-	// configure notifications on the audit bucket
+	// currently GuardDuty does not support this in CF
+	configureLogProcessingGuardDuty(awsSession, settings, bucketOutputs, onboardOutputs)
+
+	// configure notifications on the audit bucket, cannot be done via CF
 	topicArn := onboardOutputs["LogProcessingTopicArn"]
 	logBucket := bucketOutputs["AuditLogsBucket"]
 	s3Client := s3.New(awsSession)
@@ -191,8 +181,10 @@ func configureLogProcessingUsingAPIs(awsSession *session.Session, config *Panthe
 	}
 }
 
-func configureLogProcessingGuardDuty(awsSession *session.Session, config *PantherConfig, bucketOutputs, onboardOutputs map[string]string) {
-	if !config.OnboardParameterValues.EnableGuardDuty {
+func configureLogProcessingGuardDuty(awsSession *session.Session, settings *config.PantherConfig,
+	bucketOutputs, onboardOutputs map[string]string) {
+
+	if !settings.OnboardParameterValues.EnableGuardDuty {
 		return
 	}
 	gdClient := guardduty.New(awsSession)

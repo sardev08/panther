@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -24,16 +25,14 @@ import * as ApolloReactCommon from '@apollo/client';
 import * as ApolloReactHooks from '@apollo/client';
 
 export type AddLogSourceVariables = {
-  input: Types.AddIntegrationInput;
+  input: Types.AddLogIntegrationInput;
 };
 
-export type AddLogSource = {
-  addIntegration: Types.Maybe<Pick<Types.Integration, 'integrationId'>>;
-};
+export type AddLogSource = { addLogIntegration: Pick<Types.LogIntegration, 'integrationId'> };
 
 export const AddLogSourceDocument = gql`
-  mutation AddLogSource($input: AddIntegrationInput!) {
-    addIntegration(input: $input) {
+  mutation AddLogSource($input: AddLogIntegrationInput!) {
+    addLogIntegration(input: $input) {
       integrationId
     }
   }

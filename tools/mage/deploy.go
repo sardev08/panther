@@ -36,7 +36,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fatih/color"
 	"github.com/magefile/mage/sh"
-	"gopkg.in/yaml.v2"
 
 	"github.com/panther-labs/panther/api/gateway/analysis/client"
 	"github.com/panther-labs/panther/api/gateway/analysis/client/operations"
@@ -46,6 +45,7 @@ import (
 	"github.com/panther-labs/panther/pkg/awsglue"
 	"github.com/panther-labs/panther/pkg/gatewayapi"
 	"github.com/panther-labs/panther/pkg/shutil"
+	"github.com/panther-labs/panther/tools/config"
 )
 
 const (
@@ -88,9 +88,10 @@ var supportedRegions = map[string]bool{
 // Deploy Deploy application infrastructure
 func Deploy() {
 	start := time.Now()
-	var config PantherConfig
-	if err := yaml.Unmarshal(readFile(configFile), &config); err != nil {
-		logger.Fatalf("failed to parse config file %s: %v", configFile, err)
+
+	settings, err := config.Settings()
+	if err != nil {
+		logger.Fatalf("failed to read config file %s: %v", config.Filepath, err)
 	}
 
 	awsSession, err := getSession()
@@ -99,8 +100,7 @@ func Deploy() {
 	}
 
 	deployPrecheck(aws.StringValue(awsSession.Config.Region))
-	Build.Lambda(Build{})
-	preprocessTemplates()
+	Build.All(Build{})
 
 	logger.Infof("deploy: deploying Panther to %s", *awsSession.Config.Region)
 
@@ -108,15 +108,15 @@ func Deploy() {
 
 	// Deploy prerequisite sourceBucket stack
 	bucketParams := map[string]string{
-		"S3AccessLogsBucket": config.BucketsParameterValues.S3AccessLogsBucket, // optional user override
+		"S3AccessLogsBucket": settings.BucketsParameterValues.S3AccessLogsBucket, // optional user override
 	}
 	bucketOutputs := deployTemplate(awsSession, bucketTemplate, "", bucketStack, bucketParams)
 	sourceBucket := bucketOutputs["SourceBucketName"]
 
 	// Deploy main application stack
-	backendParams := getBackendDeployParams(awsSession, &config, bucketOutputs)
-	backendOutputs := deployTemplate(awsSession, backendTemplate, sourceBucket, backendStack, backendParams)
-	if err := postDeploySetup(awsSession, backendOutputs, &config); err != nil {
+	params := getBackendDeployParams(awsSession, settings, bucketOutputs)
+	backendOutputs := deployTemplate(awsSession, backendTemplate, sourceBucket, backendStack, params)
+	if err := postDeploySetup(awsSession, backendOutputs, settings); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -134,14 +134,14 @@ func Deploy() {
 	runDeploy(func() { deployDatabases(awsSession, sourceBucket, backendOutputs) })
 
 	// Deploy frontend stack
-	runDeploy(func() { deployFrontend(awsSession, sourceBucket, backendOutputs, &config) })
+	runDeploy(func() { deployFrontend(awsSession, sourceBucket, backendOutputs, settings) })
 
 	// Deploy monitoring
-	runDeploy(func() { deployMonitoring(awsSession, sourceBucket, backendOutputs, &config) })
+	runDeploy(func() { deployMonitoring(awsSession, sourceBucket, backendOutputs, settings) })
 
 	// Onboard Panther account to Panther
-	if config.OnboardParameterValues.OnboardSelf {
-		runDeploy(func() { deployOnboard(awsSession, &config, bucketOutputs, backendOutputs) })
+	if settings.OnboardParameterValues.OnboardSelf {
+		runDeploy(func() { deployOnboard(awsSession, settings, bucketOutputs, backendOutputs) })
 	}
 
 	wg.Wait()
@@ -174,14 +174,14 @@ func deployPrecheck(awsRegion string) {
 // This will create a Python layer, pass down the name of the log database,
 // pass down user supplied alarm SNS topic and a self-signed cert if necessary.
 func getBackendDeployParams(
-	awsSession *session.Session, config *PantherConfig, bucketOutputs map[string]string) map[string]string {
+	awsSession *session.Session, settings *config.PantherConfig, bucketOutputs map[string]string) map[string]string {
 
-	s3AccessLogsBucket := config.BucketsParameterValues.S3AccessLogsBucket
+	s3AccessLogsBucket := settings.BucketsParameterValues.S3AccessLogsBucket
 	if s3AccessLogsBucket == "" {
 		s3AccessLogsBucket = bucketOutputs["AuditLogsBucket"]
 	}
 
-	v := config.BackendParameterValues
+	v := settings.BackendParameterValues
 	result := map[string]string{
 		"AuditLogsBucket":              bucketOutputs["AuditLogsBucket"],
 		"AuditRoleName":                auditRole + "-" + *awsSession.Config.Region,
@@ -201,7 +201,7 @@ func getBackendDeployParams(
 	// If no custom Python layer is defined, then we need to build the default one.
 	if result["PythonLayerVersionArn"] == "" {
 		result["PythonLayerKey"] = layerS3ObjectKey
-		result["PythonLayerObjectVersion"] = uploadLayer(awsSession, config.PipLayer,
+		result["PythonLayerObjectVersion"] = uploadLayer(awsSession, settings.PipLayer,
 			bucketOutputs["SourceBucketName"], layerS3ObjectKey)
 	}
 
@@ -209,9 +209,6 @@ func getBackendDeployParams(
 	if result["WebApplicationCertificateArn"] == "" {
 		result["WebApplicationCertificateArn"] = uploadLocalCertificate(awsSession)
 	}
-
-	// set alarm sns topic if configured
-	result["AlarmSNSTopicArn"] = config.MonitoringParameterValues.AlarmSNSTopicARN
 
 	result["PantherLogProcessingDatabase"] = awsglue.LogProcessingDatabaseName
 
@@ -263,7 +260,7 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 }
 
 // After the main stack is deployed, we need to make several manual API calls
-func postDeploySetup(awsSession *session.Session, backendOutputs map[string]string, config *PantherConfig) error {
+func postDeploySetup(awsSession *session.Session, backendOutputs map[string]string, settings *config.PantherConfig) error {
 	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
 	userPoolID := backendOutputs["WebApplicationUserPoolId"]
 	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
@@ -282,7 +279,7 @@ func postDeploySetup(awsSession *session.Session, backendOutputs map[string]stri
 		return err
 	}
 
-	return initializeAnalysisSets(awsSession, backendOutputs["AnalysisApiEndpoint"], config)
+	return initializeAnalysisSets(awsSession, backendOutputs["AnalysisApiEndpoint"], settings)
 }
 
 // If the users list is empty (e.g. on the initial deploy), create the first user.
@@ -331,7 +328,7 @@ func inviteFirstUser(awsSession *session.Session) error {
 }
 
 // Install Python rules/policies if they don't already exist.
-func initializeAnalysisSets(awsSession *session.Session, endpoint string, config *PantherConfig) error {
+func initializeAnalysisSets(awsSession *session.Session, endpoint string, settings *config.PantherConfig) error {
 	httpClient := gatewayapi.GatewayClient(awsSession)
 	apiClient := client.NewHTTPClientWithConfig(nil, client.DefaultTransportConfig().
 		WithBasePath("/v1").WithHost(endpoint))
@@ -358,7 +355,7 @@ func initializeAnalysisSets(awsSession *session.Session, endpoint string, config
 	}
 
 	var newRules, newPolicies int64
-	for _, path := range config.InitialAnalysisSets {
+	for _, path := range settings.InitialAnalysisSets {
 		logger.Info("deploy: uploading initial analysis pack " + path)
 		var contents []byte
 		if strings.HasPrefix(path, "file://") {

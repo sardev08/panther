@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -26,31 +27,33 @@ import * as ApolloReactHooks from '@apollo/client';
 export type GetOrganizationStatsVariables = {};
 
 export type GetOrganizationStats = {
-  organizationStats: Types.Maybe<{
-    scannedResources: Types.Maybe<{
-      byType: Types.Maybe<
+  organizationStats?: Types.Maybe<{
+    scannedResources?: Types.Maybe<{
+      byType?: Types.Maybe<
         Array<
           Types.Maybe<
             Pick<Types.ScannedResourceStats, 'type'> & {
-              count: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
+              count?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'fail' | 'pass' | 'error'>>;
             }
           >
         >
       >;
     }>;
-    appliedPolicies: Types.Maybe<{
-      info: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
-      low: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
-      medium: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
-      high: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
-      critical: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
+    appliedPolicies?: Types.Maybe<{
+      info?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
+      low?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
+      medium?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
+      high?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
+      critical?: Types.Maybe<Pick<Types.ComplianceStatusCounts, 'error' | 'pass' | 'fail'>>;
     }>;
-    topFailingPolicies: Types.Maybe<
+    topFailingPolicies?: Types.Maybe<
       Array<Types.Maybe<Pick<Types.PolicySummary, 'id' | 'severity'>>>
     >;
-    topFailingResources: Types.Maybe<Array<Types.Maybe<Pick<Types.ResourceSummary, 'id'>>>>;
+    topFailingResources?: Types.Maybe<Array<Types.Maybe<Pick<Types.ResourceSummary, 'id'>>>>;
   }>;
-  integrations: Types.Maybe<Array<Pick<Types.Integration, 'integrationId'>>>;
+  listComplianceIntegrations: Array<
+    Types.Maybe<Pick<Types.ComplianceIntegration, 'integrationId'>>
+  >;
 };
 
 export const GetOrganizationStatsDocument = gql`
@@ -101,7 +104,7 @@ export const GetOrganizationStatsDocument = gql`
         id
       }
     }
-    integrations(input: { integrationType: "aws-scan" }) {
+    listComplianceIntegrations {
       integrationId
     }
   }

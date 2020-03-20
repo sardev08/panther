@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -28,7 +29,7 @@ export type AddDestinationVariables = {
 };
 
 export type AddDestination = {
-  addDestination: Types.Maybe<
+  addDestination?: Types.Maybe<
     Pick<
       Types.Destination,
       | 'createdBy'
@@ -42,20 +43,20 @@ export type AddDestination = {
       | 'defaultForSeverity'
     > & {
       outputConfig: {
-        slack: Types.Maybe<Pick<Types.SlackConfig, 'webhookURL'>>;
-        sns: Types.Maybe<Pick<Types.SnsConfig, 'topicArn'>>;
-        pagerDuty: Types.Maybe<Pick<Types.PagerDutyConfig, 'integrationKey'>>;
-        github: Types.Maybe<Pick<Types.GithubConfig, 'repoName' | 'token'>>;
-        jira: Types.Maybe<
+        slack?: Types.Maybe<Pick<Types.SlackConfig, 'webhookURL'>>;
+        sns?: Types.Maybe<Pick<Types.SnsConfig, 'topicArn'>>;
+        pagerDuty?: Types.Maybe<Pick<Types.PagerDutyConfig, 'integrationKey'>>;
+        github?: Types.Maybe<Pick<Types.GithubConfig, 'repoName' | 'token'>>;
+        jira?: Types.Maybe<
           Pick<
             Types.JiraConfig,
             'orgDomain' | 'projectKey' | 'userName' | 'apiKey' | 'assigneeId' | 'issueType'
           >
         >;
-        opsgenie: Types.Maybe<Pick<Types.OpsgenieConfig, 'apiKey'>>;
-        msTeams: Types.Maybe<Pick<Types.MsTeamsConfig, 'webhookURL'>>;
-        sqs: Types.Maybe<Pick<Types.SqsConfig, 'queueUrl'>>;
-        asana: Types.Maybe<Pick<Types.AsanaConfig, 'personalAccessToken' | 'projectGids'>>;
+        opsgenie?: Types.Maybe<Pick<Types.OpsgenieConfig, 'apiKey'>>;
+        msTeams?: Types.Maybe<Pick<Types.MsTeamsConfig, 'webhookURL'>>;
+        sqs?: Types.Maybe<Pick<Types.SqsConfig, 'queueUrl'>>;
+        asana?: Types.Maybe<Pick<Types.AsanaConfig, 'personalAccessToken' | 'projectGids'>>;
       };
     }
   >;

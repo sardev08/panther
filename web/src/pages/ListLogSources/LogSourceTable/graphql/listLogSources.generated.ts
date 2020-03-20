@@ -16,7 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/* eslint-disable import/order, import/no-duplicates */
+/* eslint-disable import/order, import/no-duplicates, @typescript-eslint/no-unused-vars */
+
 import * as Types from '../../../../../__generated__/schema';
 
 import gql from 'graphql-tag';
@@ -26,16 +27,11 @@ import * as ApolloReactHooks from '@apollo/client';
 export type ListLogSourcesVariables = {};
 
 export type ListLogSources = {
-  integrations: Types.Maybe<
-    Array<
+  listLogIntegrations: Array<
+    Types.Maybe<
       Pick<
-        Types.Integration,
-        | 'awsAccountId'
-        | 'createdAtTime'
-        | 'integrationId'
-        | 'integrationLabel'
-        | 'integrationType'
-        | 's3Buckets'
+        Types.LogIntegration,
+        'awsAccountId' | 'createdAtTime' | 'integrationId' | 'integrationLabel' | 's3Buckets'
       >
     >
   >;
@@ -43,12 +39,11 @@ export type ListLogSources = {
 
 export const ListLogSourcesDocument = gql`
   query ListLogSources {
-    integrations(input: { integrationType: "aws-s3" }) {
+    listLogIntegrations {
       awsAccountId
       createdAtTime
       integrationId
       integrationLabel
-      integrationType
       s3Buckets
     }
   }

@@ -86,7 +86,7 @@ func sliceStringValue(stringPointers []*string) []string {
 func getTemplate(integrationType *string) string {
 	switch *integrationType {
 	case models.IntegrationTypeAWSScan:
-		return complianceTemplate
+		return cloudsecTemplate
 	case models.IntegrationTypeAWS3:
 		return logProcessingTemplate
 	default:
