@@ -58,7 +58,6 @@ Resources:
           IpProtocol: tcp
 
   PublicLoadBalancer:
-    DependsOn: PublicLoadBalancerLoggingBucketPolicy
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: web
@@ -81,20 +80,6 @@ Resources:
         - !Ref SubnetTwoId
       SecurityGroups:
         - !Ref PublicLoadBalancerSecurityGroup
-
-  # https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/enable-access-logs.html
-  PublicLoadBalancerLoggingBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref AuditLogsBucket
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !FindInMap [ELBAccounts, !Ref 'AWS::Region', ARN]
-            Action: s3:PutObject
-            Resource: !Sub arn:aws:s3:::${AuditLogsBucket}/*
 
   # A dummy target group is used to setup the ALB to just drop traffic
   # initially, before any real service target groups have been added.
@@ -133,51 +118,3 @@ Outputs:
   LoadBalancerSecurityGroupId:
     Description: The Security Group ID associated with the Public Loadbalancer that we have created
     Value: !Ref PublicLoadBalancerSecurityGroup
-
-Mappings:
-  # OMG, I can't believe they make people do this ...
-  ELBAccounts: # https://docs.aws.amazon.com/elasticloadbalancing/latest/classic/enable-access-logs.htm
-    us-east-1:
-      ARN: arn:aws:iam::127311923021:root
-    us-east-2:
-      ARN: arn:aws:iam::033677994240:root
-    us-west-1:
-      ARN: arn:aws:iam::027434742980:root
-    us-west-2:
-      ARN: arn:aws:iam::797873946194:root
-    ca-central-1:
-      ARN: arn:aws:iam::985666609251:root
-    eu-central-1:
-      ARN: arn:aws:iam::054676820928:root
-    eu-west-1:
-      ARN: arn:aws:iam::156460612806:root
-    eu-west-2:
-      ARN: arn:aws:iam::652711504416:root
-    eu-west-3:
-      ARN: arn:aws:iam::009996457667:root
-    eu-north-1:
-      ARN: arn:aws:iam::897822967062:root
-    ap-east-1:
-      ARN: arn:aws:iam::754344448648:root
-    ap-northeast-1:
-      ARN: arn:aws:iam::582318560864:root
-    ap-northeast-2:
-      ARN: arn:aws:iam::600734575887:root
-    ap-southeast-1:
-      ARN: arn:aws:iam::383597477331:root
-    ap-southeast-2:
-      ARN: arn:aws:iam::114774131450:root
-    ap-south-1:
-      ARN: arn:aws:iam::718504428378:root
-    me-south-1:
-      ARN: arn:aws:iam::076674570225:root
-    sa-east-1:
-      ARN: arn:aws:iam::507241528517:root
-    us-gov-west-1:
-      ARN: arn:aws:iam::048591011584:root
-    us-gov-east-1:
-      ARN: arn:aws:iam::190560391635:root
-    cn-north-1:
-      ARN: arn:aws:iam::638102146993:root
-    cn-northwest-1:
-      ARN: arn:aws:iam::037604701340:root

@@ -21,7 +21,7 @@ package mage
 const configFile = "deployments/panther_config.yml"
 
 type bucketsParameters struct {
-	AccessLogsBucketName string `yaml:"AccessLogsBucketName"`
+	S3AccessLogsBucket string `yaml:"S3AccessLogsBucket"`
 }
 
 type backendParameters struct {
@@ -47,6 +47,10 @@ type monitoringParameters struct {
 type onboardingParameters struct {
 	// whether or not to on board the account running Panther as a Cloud Security source
 	OnboardSelf bool `yaml:"OnboardSelf"`
+	// whether or not to enable CloudTrail in the account
+	EnableCloudTrail bool `yaml:"EnableCloudTrail"`
+	// whether or not to enable GuardDuty in the account
+	EnableGuardDuty bool `yaml:"EnableGuardDuty"`
 }
 
 // PantherConfig describes the panther_config.yml file.

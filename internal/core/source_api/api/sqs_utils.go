@@ -26,8 +26,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-
-	"github.com/panther-labs/panther/pkg/genericapi"
 )
 
 //
@@ -65,15 +63,10 @@ func AddPermissionToLogProcessorQueue(accountID string) error {
 	}
 
 	if findStatementIndex(existingPolicy, accountID) >= 0 {
-		errMsg := "account: " + accountID + " has already been configured"
-		err = errors.WithStack(&genericapi.AlreadyExistsError{Message: errMsg})
-		zap.L().Error(errMsg,
+		zap.L().Warn("queue has already been configured",
 			zap.String("sqsQueueARN", logProcessorQueueArn),
-			zap.String("awsAccountId", accountID),
-			zap.Error(err))
-
-		// // Returning user friendly message
-		return err
+			zap.String("awsAccountId", accountID))
+		return nil
 	}
 
 	existingPolicy.Statements = append(existingPolicy.Statements, getStatementForAccount(accountID))

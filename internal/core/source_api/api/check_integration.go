@@ -33,10 +33,10 @@ import (
 )
 
 const (
-	auditRoleFormat         = "arn:aws:iam::%s:role/PantherAuditRole"
-	logProcessingRoleFormat = "arn:aws:iam::%s:role/PantherLogProcessingRole"
-	cweRoleFormat           = "arn:aws:iam::%s:role/PantherCloudFormationStackSetExecutionRole"
-	remediationRoleFormat   = "arn:aws:iam::%s:role/PantherRemediationRole"
+	auditRoleFormat         = "arn:aws:iam::%s:role/PantherAuditRole-%s"
+	logProcessingRoleFormat = "arn:aws:iam::%s:role/PantherLogProcessingRole-%s"
+	cweRoleFormat           = "arn:aws:iam::%s:role/PantherCloudFormationStackSetExecutionRole-%s"
+	remediationRoleFormat   = "arn:aws:iam::%s:role/PantherRemediationRole-%s"
 )
 
 var evaluateIntegrationFunc = evaluateIntegration
@@ -50,18 +50,22 @@ func (API) CheckIntegration(input *models.CheckIntegrationInput) (*models.Source
 	}
 
 	if *input.IntegrationType == models.IntegrationTypeAWSScan {
-		_, out.AuditRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(auditRoleFormat, *input.AWSAccountID)))
+		_, out.AuditRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(auditRoleFormat,
+			*input.AWSAccountID, *sess.Config.Region)))
 		if aws.BoolValue(input.EnableCWESetup) {
-			_, out.CWERoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(cweRoleFormat, *input.AWSAccountID)))
+			_, out.CWERoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(cweRoleFormat,
+				*input.AWSAccountID, *sess.Config.Region)))
 		}
 		if aws.BoolValue(input.EnableRemediation) {
-			_, out.RemediationRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(remediationRoleFormat, *input.AWSAccountID)))
+			_, out.RemediationRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(remediationRoleFormat,
+				*input.AWSAccountID, *sess.Config.Region)))
 		}
 	}
 
 	if *input.IntegrationType == models.IntegrationTypeAWS3 {
 		var roleCreds *credentials.Credentials
-		roleCreds, out.ProcessingRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(logProcessingRoleFormat, *input.AWSAccountID)))
+		roleCreds, out.ProcessingRoleStatus = getCredentialsWithStatus(aws.String(fmt.Sprintf(logProcessingRoleFormat,
+			*input.AWSAccountID, *sess.Config.Region)))
 		if len(input.S3Buckets) > 0 && *out.ProcessingRoleStatus.Healthy {
 			out.S3BucketsStatus = checkBuckets(roleCreds, input.S3Buckets)
 		}
@@ -153,6 +157,10 @@ func getCredentialsWithStatus(
 func evaluateIntegration(api API, integration *models.CheckIntegrationInput) (bool, error) {
 	status, err := api.CheckIntegration(integration)
 	if err != nil {
+		zap.L().Error("integration failed health check",
+			zap.Error(err),
+			zap.Any("integration", integration),
+			zap.Any("status", status))
 		return false, err
 	}
 
@@ -169,6 +177,12 @@ func evaluateIntegration(api API, integration *models.CheckIntegrationInput) (bo
 	}
 	for _, key := range status.KMSKeysStatus {
 		passing = passing && aws.BoolValue(key.Healthy)
+	}
+
+	if !passing {
+		zap.L().Warn("integration failed health check",
+			zap.Any("integration", integration),
+			zap.Any("status", status))
 	}
 
 	return passing, nil

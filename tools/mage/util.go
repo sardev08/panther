@@ -34,7 +34,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	jsoniter "github.com/json-iterator/go"
@@ -100,6 +99,7 @@ func getSession() (*session.Session, error) {
 	return awsSession, nil
 }
 
+/* NOT USED but might be later
 // Return true if IAM role exists
 func roleExists(iamClient *iam.IAM, roleName string) (bool, error) {
 	input := &iam.GetRoleInput{RoleName: aws.String(roleName)}
@@ -112,6 +112,7 @@ func roleExists(iamClient *iam.IAM, roleName string) (bool, error) {
 	}
 	return true, nil
 }
+*/
 
 // Return true if CF stack exists
 func stackExists(cfClient *cloudformation.CloudFormation, stackName string) (bool, error) {

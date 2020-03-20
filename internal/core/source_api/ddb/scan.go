@@ -31,17 +31,23 @@ import (
 // ScanIntegrations returns all enabled integrations based on type (if type is specified).
 // It performs a DDB scan of the entire table with a filter expression.
 func (ddb *DDB) ScanIntegrations(input *models.ListIntegrationsInput) ([]*models.SourceIntegration, error) {
-	filt := expression.Name("integrationType").Equal(expression.Value(input.IntegrationType))
-	expr, err := expression.NewBuilder().WithFilter(filt).Build()
-	if err != nil {
-		return nil, &genericapi.InternalError{Message: "failed to build dynamodb expression"}
-	}
-
-	scanInput := &dynamodb.ScanInput{
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		TableName:                 aws.String(ddb.TableName),
+	var scanInput *dynamodb.ScanInput
+	if input.IntegrationType != nil {
+		filt := expression.Name("integrationType").Equal(expression.Value(input.IntegrationType))
+		expr, err := expression.NewBuilder().WithFilter(filt).Build()
+		if err != nil {
+			return nil, &genericapi.InternalError{Message: "failed to build dynamodb expression"}
+		}
+		scanInput = &dynamodb.ScanInput{
+			FilterExpression:          expr.Filter(),
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			TableName:                 aws.String(ddb.TableName),
+		}
+	} else { // all
+		scanInput = &dynamodb.ScanInput{
+			TableName: aws.String(ddb.TableName),
+		}
 	}
 
 	output, err := ddb.Client.Scan(scanInput)

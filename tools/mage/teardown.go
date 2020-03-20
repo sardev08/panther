@@ -223,22 +223,7 @@ func deleteOnboardStack(awsSession *session.Session, results chan deleteStackRes
 		logger.Fatalf("error checking stack %s: %v", onboardStack, err)
 	}
 	if onboardStackExists {
-		auditRoleExists, err := roleExists(iam.New(awsSession), auditRole)
-		if err != nil {
-			logger.Fatalf("error checking audit role name %s: %v", auditRole, err)
-		}
-		if auditRoleExists {
-			answer := promptUser("\nDo you want to delete CloudSecurity roles (this can affect deployments in other regions)? (yes|no) ",
-				nonemptyValidator)
-			if strings.ToLower(answer) == "yes" {
-				logger.Infof("deleting stack %s", onboardStack)
-				go deleteStack(cfClient, aws.String(onboardStack), results) // can be done in background
-			} else {
-				results <- deleteStackResult{stackName: onboardStack + " (skipped)", err: nil}
-			}
-		}
-	} else {
-		results <- deleteStackResult{stackName: onboardStack + " (skipped)", err: nil}
+		go deleteStack(cfClient, aws.String(onboardStack), results) // can be done in background
 	}
 }
 

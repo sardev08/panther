@@ -53,9 +53,12 @@ Parameters:
     Default: ''
 
   # Set automatically by "mage deploy"
-  S3BucketAccessLogs: # FIXME: change to AuditLogsBucket
+  AuditLogsBucket:
     Type: String
     Description: The name of the S3 bucket which stores Panther audit logs
+  S3AccessLogsBucket:
+    Type: String
+    Description: The name of the S3 bucket which stores S3 Access log (by default, same as AuditLogsBucket)
   S3BucketSource:
     Type: String
     Description: The name of the S3 bucket storing deployment artifacts
@@ -141,7 +144,6 @@ Resources:
               - kms:GenerateDataKey
               - kms:Decrypt
             Resource: '*'
-
   QueueEncryptionKeyAlias:
     Type: AWS::KMS::Alias
     Properties:
@@ -171,13 +173,15 @@ Resources:
   WebApplicationNetworking:
     Type: AWS::CloudFormation::Stack
     Properties:
+      Parameters:
+        AuditLogsBucket: !Ref AuditLogsBucket
       TemplateURL: web/networking.yml
 
   WebApplicationLoadBalancer:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        AuditLogsBucket: !Ref S3BucketAccessLogs
+        AuditLogsBucket: !Ref AuditLogsBucket
         VpcId: !GetAtt WebApplicationNetworking.Outputs.VpcId
         SubnetOneId: !GetAtt WebApplicationNetworking.Outputs.SubnetOneId
         SubnetTwoId: !GetAtt WebApplicationNetworking.Outputs.SubnetTwoId
@@ -210,7 +214,7 @@ Resources:
         TracingMode: !Ref TracingMode
 
         ComplianceApiId: !GetAtt ComplianceAPI.Outputs.GatewayId
-        S3BucketAccessLogs: !Ref S3BucketAccessLogs
+        S3BucketAccessLogs: !Ref S3AccessLogsBucket
         SQSKeyId: !Ref QueueEncryptionKey
       TemplateURL: ../out/deployments/core/embedded.analysis_api.yml
 
@@ -371,7 +375,7 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       LoggingConfiguration:
-        DestinationBucketName: !Ref S3BucketAccessLogs
+        DestinationBucketName: !Ref S3AccessLogsBucket
         LogFilePrefix: !Sub panther-processed-data-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -441,7 +445,7 @@ Resources:
           - ExpirationInDays: 30
             Status: Enabled
       LoggingConfiguration:
-        DestinationBucketName: !Ref S3BucketAccessLogs
+        DestinationBucketName: !Ref S3AccessLogsBucket
         LogFilePrefix: !Sub panther-athena-results-${AWS::AccountId}-${AWS::Region}/
       BucketEncryption:
         ServerSideEncryptionConfiguration:

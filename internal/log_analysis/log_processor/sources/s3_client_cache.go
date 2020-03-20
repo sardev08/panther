@@ -38,7 +38,7 @@ import (
 const (
 	// sessionDurationSeconds is the duration in seconds of the STS session the S3 client uses
 	sessionDurationSeconds  = 3600
-	logProcessingRoleFormat = "arn:aws:iam::%s:role/PantherLogProcessingRole"
+	logProcessingRoleFormat = "arn:aws:iam::%s:role/PantherLogProcessingRole-%s"
 )
 
 var (
@@ -130,7 +130,7 @@ func getBucketRegion(s3Bucket string, awsCreds *credentials.Credentials) (string
 
 // getAwsCredentials fetches the AWS Credentials from STS for by assuming a role in the given account
 func getAwsCredentials(awsAccountID string) *credentials.Credentials {
-	roleArn := fmt.Sprintf(logProcessingRoleFormat, awsAccountID)
+	roleArn := fmt.Sprintf(logProcessingRoleFormat, awsAccountID, *common.Session.Config.Region)
 	zap.L().Debug("fetching new credentials from assumed role", zap.String("roleArn", roleArn))
 
 	return stscreds.NewCredentials(common.Session, roleArn, func(p *stscreds.AssumeRoleProvider) {

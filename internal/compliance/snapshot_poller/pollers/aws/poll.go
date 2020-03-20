@@ -46,10 +46,6 @@ type resourcePoller struct {
 	resourcePoller awsmodels.ResourcePoller
 }
 
-const (
-	pantherAuditRoleID = "PantherAuditRole"
-)
-
 var (
 	// AssumeRoleFunc is the function to return valid AWS credentials.
 	AssumeRoleFunc = AssumeRole
@@ -201,7 +197,7 @@ func AssumeRole(
 		}
 	}
 
-	zap.L().Info("assuming role", zap.String("roleArn", *pollerInput.AuthSource))
+	zap.L().Debug("assuming role", zap.String("roleArn", *pollerInput.AuthSource))
 	creds = stscreds.NewCredentials(
 		sess,
 		*pollerInput.AuthSource,
@@ -209,7 +205,7 @@ func AssumeRole(
 	)
 	err := verifyAssumedCreds(creds)
 	if err != nil {
-		return nil, errors.New("AWS IAM Role could not be assumed")
+		return nil, errors.Errorf("AWS IAM Role '%s' could not be assumed", *pollerInput.AuthSource)
 	}
 
 	CredentialCache[*pollerInput.AuthSource] = creds
@@ -225,14 +221,12 @@ func Poll(scanRequest *pollermodels.ScanEntry) (
 	}
 
 	// Build the audit role manually
-	// 	Format: arn:aws:iam::$(ACCOUNT_ID):role/PantherAuditRole
-	var auditRoleARN string
+	// 	Format: arn:aws:iam::$(ACCOUNT_ID):role/PantherAuditRole-($REGION)
 	if len(auditRoleName) == 0 {
-		// Default value
-		auditRoleARN = "arn:aws:iam::" + *scanRequest.AWSAccountID + ":role/" + pantherAuditRoleID
-	} else {
-		auditRoleARN = "arn:aws:iam::" + *scanRequest.AWSAccountID + ":role/" + auditRoleName
+		return nil, errors.New("no audit role configured")
 	}
+	auditRoleARN := "arn:aws:iam::" + *scanRequest.AWSAccountID + ":role/" + auditRoleName
+
 	zap.L().Debug("constructed audit role", zap.String("role", auditRoleARN))
 
 	// Extract the role ARN to construct various ResourceIDs.
