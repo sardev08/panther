@@ -17,7 +17,7 @@
  */
 
 import { Flex, Heading, Text } from 'pouncejs';
-import { SubmitButton } from 'Components/Buttons';
+import SubmitButton from 'Components/Buttons2/SubmitButton';
 import React from 'react';
 
 interface SuccessPanelProps {
