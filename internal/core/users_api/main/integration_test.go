@@ -39,8 +39,8 @@ import (
 )
 
 const (
-	backendStack         = "panther-app"
-	userPoolIDOutputName = "WebApplicationUserPoolId"
+	backendStack         = "panther-bootstrap"
+	userPoolIDOutputName = "UserPoolId"
 
 	usersAPI = "panther-users-api"
 

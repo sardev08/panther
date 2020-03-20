@@ -436,7 +436,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	// Wait for stacks to finish
 	// There will be two stacks (onboarding + monitoring) after this one
 	for i := 1; i <= parallelStacks; i++ {
-		logger.Infof("    √ stack %s finished (%d/d)", <-finishedStacks, i, parallelStacks+2)
+		logger.Infof("    √ stack %s finished (%d/%d)", <-finishedStacks, i, parallelStacks+2)
 	}
 
 	// Metric filters have to be deployed after all log groups have been created
