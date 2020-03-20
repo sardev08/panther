@@ -42,10 +42,10 @@ const (
 )
 
 // onboard Panther to monitor Panther account
-func deployOnboard(awsSession *session.Session, bucket string, backendOutputs map[string]string) {
+func deployOnboard(awsSession *session.Session, accountID, bucket string) {
 	deployCloudSecRoles(awsSession, bucket)
-	registerPantherAccount(awsSession, backendOutputs["AWSAccountId"]) // this MUST follow the CloudSec roles being deployed
-	deployRealTimeStackSet(awsSession, backendOutputs["AWSAccountId"])
+	registerPantherAccount(awsSession, accountID) // this MUST follow the CloudSec roles being deployed
+	deployRealTimeStackSet(awsSession, accountID)
 }
 
 func deployCloudSecRoles(awsSession *session.Session, bucket string) {

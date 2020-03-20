@@ -194,7 +194,8 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 	//
 	// The ECS cluster in the bootstrap stack has to wait until the ECS service in the frontend stack is
 	// completely stopped. So we don't include the bootstrap stack in the initial parallel set
-	parallelStacks := []string{gatewayStack, appsyncStack, cloudsecStack, coreStack, frontendStack, glueStack, logAnalysisStack, monitoringStack}
+	parallelStacks := []string{
+		gatewayStack, appsyncStack, cloudsecStack, coreStack, frontendStack, glueStack, logAnalysisStack, monitoringStack}
 	logger.Infof("deleting CloudFormation stacks: %s",
 		strings.Join(append(parallelStacks, bootstrapStack), ", "))
 	for _, stack := range parallelStacks {

@@ -32,17 +32,6 @@ import (
 	"github.com/panther-labs/panther/tools/dashboards"
 )
 
-var (
-	// These are the CF dirs under "deployments" that we want to analyze to generate metrics and alarms
-	// NOTE: keep these up to date! Changes here will also need to be made to deployments/monitoring.yml
-	cfDirs = []string{
-		"deployments/compliance",
-		"deployments/core",
-		"deployments/log_analysis",
-		"deployments/web",
-	}
-)
-
 // Generate Glue tables for log processor output as CloudFormation
 func generateGlueTables() error {
 	outDir := filepath.Dir(glueTemplate)

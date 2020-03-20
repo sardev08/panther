@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/glue"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/magefile/mage/mg"
@@ -35,32 +36,25 @@ import (
 // targets for managing Glue tables
 type Glue mg.Namespace
 
-// Update Updates the panther-app-databases cloudformation template (used for schema migrations)
-// TODO - restore
-//
-//func (t Glue) Update() {
-//	awsSession, err := getSession()
-//	if err != nil {
-//		logger.Fatal(err)
-//	}
-//	cfClient := cloudformation.New(awsSession)
-//
-//	_, bucketStackOutput, err := describeStack(cfClient, bucketStack)
-//	if err != nil {
-//		logger.Fatal(err)
-//	}
-//
-//	status, backendStackOutput, err := describeStack(cfClient, backendStack)
-//	if err != nil {
-//		logger.Fatal(err)
-//	}
-//	if status != "CREATE_COMPLETE" && status != "UPDATE_COMPLETE" {
-//		logger.Fatalf("stack %s is not in a deployable state: %s", backendStack, status)
-//	}
-//
-//
-//	deployDatabases(awsSession, bucketStackOutput["SourceBucketName"], backendStackOutput)
-//}
+// Updates the panther-glue cloudformation template (used for schema migrations)
+func (t Glue) Update() {
+	awsSession, err := getSession()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	cfClient := cloudformation.New(awsSession)
+
+	status, outputs, err := describeStack(cfClient, bootstrapStack)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	if status != cloudformation.StackStatusCreateComplete && status != cloudformation.StackStatusUpdateComplete {
+		logger.Fatalf("stack %s is not in a deployable state: %s", bootstrapStack, status)
+	}
+
+	deployGlue(awsSession, outputs)
+}
 
 // Sync Sync glue table partitions after schema change
 func (t Glue) Sync() {

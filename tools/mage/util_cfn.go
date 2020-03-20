@@ -25,7 +25,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	cfn "github.com/aws/aws-sdk-go/service/cloudformation"
 
 	"github.com/panther-labs/panther/tools/config"
@@ -49,18 +48,6 @@ var allStacks = []string{
 type cfnResource struct {
 	Resource *cfn.StackResourceSummary
 	Stack    *cfn.Stack
-}
-
-// Get CloudFormation stack outputs as a map.
-func getStackOutputs(awsSession *session.Session, name string) (map[string]string, error) {
-	cfnClient := cfn.New(awsSession)
-	input := &cfn.DescribeStacksInput{StackName: &name}
-	response, err := cfnClient.DescribeStacks(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe stack %s: %v", name, err)
-	}
-
-	return flattenStackOutputs(response), nil
 }
 
 // Flatten CloudFormation stack outputs into a string map.

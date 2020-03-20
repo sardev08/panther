@@ -19,6 +19,8 @@ package mage
  */
 
 import (
+	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,12 +33,19 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/fatih/color"
 	"github.com/magefile/mage/sh"
 
+	"github.com/panther-labs/panther/api/gateway/analysis/client"
+	"github.com/panther-labs/panther/api/gateway/analysis/client/operations"
+	analysismodels "github.com/panther-labs/panther/api/gateway/analysis/models"
+	orgmodels "github.com/panther-labs/panther/api/lambda/organization/models"
+	usermodels "github.com/panther-labs/panther/api/lambda/users/models"
 	"github.com/panther-labs/panther/pkg/awsathena"
+	"github.com/panther-labs/panther/pkg/gatewayapi"
 	"github.com/panther-labs/panther/pkg/shutil"
 	"github.com/panther-labs/panther/tools/athenaviews"
 	"github.com/panther-labs/panther/tools/config"
@@ -125,10 +134,12 @@ func Deploy() {
 	// ***** Step 2: deploy remaining stacks in parallel
 	deployMainStacks(awsSession, settings, accountID, outputs)
 
-	// TODO - onboard Panther account to Panther
-	//if config.OnboardParameterValues.OnboardSelf {
-	//	runDeploy(func() { deployOnboard(awsSession, bucket, backendOutputs) })
-	//}
+	// ***** Step 3: first-time setup if needed
+	// TODO - put prompt at the beginning, not the end of the deploy
+	if err := postDeploySetup(awsSession, settings, outputs); err != nil {
+		logger.Fatal(err)
+	}
+
 	logger.Infof("deploy: finished successfully in %s", time.Since(start))
 	color.Yellow("\nPanther URL = https://%s\n", outputs["LoadBalancerUrl"])
 }
@@ -189,9 +200,8 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 	// While waiting for bootstrap, build deployment artifacts
 	// We don't include opstools here, takes too long and not required for deploy
 	var b Build
-	// TODO: build:api requires changing the working directory, which may cause problems with goroutine
-	b.Lambda()
 	b.Cfn()
+	b.Lambda()
 	wg.Wait()
 
 	// Now that the S3 buckets are in place and swagger specs are embedded, we can deploy the second
@@ -266,7 +276,10 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 	return *result.VersionID
 }
 
-// Deploy main stacks in parallel: appsync, cloudsec, core, glue, log analysis, monitoring, web
+// Deploy main stacks as parallelized as possible
+//
+// appsync, cloudsec, core, glue, log analysis, web
+// monitoring, onboarding
 func deployMainStacks(awsSession *session.Session, settings *config.PantherConfig, accountID string, outputs map[string]string) {
 	finishedStacks := make(chan string)
 	sourceBucket := outputs["SourceBucket"]
@@ -328,20 +341,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 
 	// Glue
 	go func(result chan string) {
-		deployTemplate(awsSession, glueTemplate, sourceBucket, glueStack, map[string]string{
-			"ProcessedDataBucket": outputs["ProcessedDataBucket"],
-		})
-
-		// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
-		const workgroup = "primary"
-		athenaBucket := outputs["AthenaResultsBucket"]
-		if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
-			logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
-		}
-		if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
-			logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
-		}
-
+		deployGlue(awsSession, outputs)
 		result <- glueStack
 	}(finishedStacks)
 
@@ -363,16 +363,6 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 		result <- logAnalysisStack
 	}(finishedStacks)
 
-	// Monitoring
-	go func(result chan string) {
-		deployTemplate(awsSession, monitoringTemplate, sourceBucket, monitoringStack, map[string]string{
-			"AppsyncId":            outputs["GraphQLApiId"],
-			"LoadBalancerFullName": outputs["LoadBalancerFullName"],
-			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
-		})
-		result <- monitoringStack
-	}(finishedStacks)
-
 	// Web server
 	go func(result chan string) {
 		deployFrontend(awsSession, settings, accountID, sourceBucket, outputs)
@@ -380,136 +370,175 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Wait for stacks to finish
-	for i := 1; i <= 7; i++ {
-		logger.Infof("    √ stack %s finished (%d/7)", <-finishedStacks, i)
+	for i := 1; i <= 6; i++ {
+		logger.Infof("    √ stack %s finished (%d/8)", <-finishedStacks, i)
+	}
+
+	// Monitoring has to be deployed after all log groups have been created
+	go func(result chan string) {
+		deployTemplate(awsSession, monitoringTemplate, outputs["SourceBucket"], monitoringStack, map[string]string{
+			"AppsyncId":            outputs["GraphQLApiId"],
+			"LoadBalancerFullName": outputs["LoadBalancerFullName"],
+			"AlarmTopicArn":        settings.Monitoring.AlarmSnsTopicArn,
+		})
+		result <- monitoringStack
+	}(finishedStacks)
+
+	// Onboard Panther to scan itself
+	go func(result chan string) {
+		if settings.Setup.OnboardSelf {
+			deployOnboard(awsSession, accountID, outputs["SourceBucket"])
+		}
+		result <- onboardStack
+	}(finishedStacks)
+
+	// Wait for onboarding and monitoring to finish
+	for i := 7; i <= 8; i++ {
+		logger.Infof("    √ stack %s finished (%d/8)", <-finishedStacks, i)
 	}
 }
 
-//// After the main stack is deployed, we need to make several manual API calls
-//func postDeploySetup(awsSession *session.Session, backendOutputs map[string]string, settings *config.PantherConfig) error {
-//	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
-//	userPoolID := backendOutputs["WebApplicationUserPoolId"]
-//	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
-//	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
-//		MfaConfiguration: aws.String("ON"),
-//		SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
-//			Enabled: aws.Bool(true),
-//		},
-//		UserPoolId: &userPoolID,
-//	})
-//	if err != nil {
-//		return fmt.Errorf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
-//	}
-//
-//	if err := inviteFirstUser(awsSession); err != nil {
-//		return err
-//	}
-//
-//	return initializeAnalysisSets(awsSession, backendOutputs["AnalysisApiEndpoint"], settings)
-//}
-//
-//// If the users list is empty (e.g. on the initial deploy), create the first user.
-//func inviteFirstUser(awsSession *session.Session) error {
-//	input := &usermodels.LambdaInput{
-//		ListUsers: &usermodels.ListUsersInput{},
-//	}
-//	var output usermodels.ListUsersOutput
-//	if err := invokeLambda(awsSession, "panther-users-api", input, &output); err != nil {
-//		return fmt.Errorf("failed to list users: %v", err)
-//	}
-//	if len(output.Users) > 0 {
-//		return nil
-//	}
-//
-//	// Prompt the user for basic information.
-//	logger.Info("setting up initial Panther admin user...")
-//	fmt.Println()
-//	firstName := promptUser("First name: ", nonemptyValidator)
-//	lastName := promptUser("Last name: ", nonemptyValidator)
-//	email := promptUser("Email: ", emailValidator)
-//	defaultOrgName := firstName + "-" + lastName
-//	orgName := promptUser("Company/Team name ("+defaultOrgName+"): ", nil)
-//	if orgName == "" {
-//		orgName = defaultOrgName
-//	}
-//
-//	// users-api.InviteUser
-//	input = &usermodels.LambdaInput{
-//		InviteUser: &usermodels.InviteUserInput{
-//			GivenName:  &firstName,
-//			FamilyName: &lastName,
-//			Email:      &email,
-//		},
-//	}
-//	if err := invokeLambda(awsSession, "panther-users-api", input, nil); err != nil {
-//		return err
-//	}
-//	logger.Infof("invite sent to %s: check your email! (it may be in spam)", email)
-//
-//	// organizations-api.UpdateSettings
-//	updateSettingsInput := &orgmodels.LambdaInput{
-//		UpdateSettings: &orgmodels.UpdateSettingsInput{DisplayName: &orgName, Email: &email},
-//	}
-//	return invokeLambda(awsSession, "panther-organization-api", &updateSettingsInput, nil)
-//}
-//
-//// Install Python rules/policies if they don't already exist.
-//func initializeAnalysisSets(awsSession *session.Session, endpoint string, settings *config.PantherConfig) error {
-//	httpClient := gatewayapi.GatewayClient(awsSession)
-//	apiClient := client.NewHTTPClientWithConfig(nil, client.DefaultTransportConfig().
-//		WithBasePath("/v1").WithHost(endpoint))
-//
-//	policies, err := apiClient.Operations.ListPolicies(&operations.ListPoliciesParams{
-//		PageSize:   aws.Int64(1),
-//		HTTPClient: httpClient,
-//	})
-//	if err != nil {
-//		return fmt.Errorf("failed to list existing policies: %v", err)
-//	}
-//
-//	rules, err := apiClient.Operations.ListRules(&operations.ListRulesParams{
-//		PageSize:   aws.Int64(1),
-//		HTTPClient: httpClient,
-//	})
-//	if err != nil {
-//		return fmt.Errorf("failed to list existing rules: %v", err)
-//	}
-//
-//	if len(policies.Payload.Policies) > 0 || len(rules.Payload.Rules) > 0 {
-//		logger.Debug("deploy: initial analysis set ignored: policies and/or rules already exist")
-//		return nil
-//	}
-//
-//	var newRules, newPolicies int64
-//	for _, path := range settings.InitialAnalysisSets {
-//		logger.Info("deploy: uploading initial analysis pack " + path)
-//		var contents []byte
-//		if strings.HasPrefix(path, "file://") {
-//			contents = readFile(strings.TrimPrefix(path, "file://"))
-//		} else {
-//			contents, err = download(path)
-//			if err != nil {
-//				return err
-//			}
-//		}
-//
-//		// BulkUpload to panther-analysis-api
-//		encoded := base64.StdEncoding.EncodeToString(contents)
-//		response, err := apiClient.Operations.BulkUpload(&operations.BulkUploadParams{
-//			Body: &analysismodels.BulkUpload{
-//				Data:   analysismodels.Base64zipfile(encoded),
-//				UserID: mageUserID,
-//			},
-//			HTTPClient: httpClient,
-//		})
-//		if err != nil {
-//			return fmt.Errorf("failed to upload %s: %v", path, err)
-//		}
-//
-//		newRules += *response.Payload.NewRules
-//		newPolicies += *response.Payload.NewPolicies
-//	}
-//
-//	logger.Infof("deploy: initialized with %d policies and %d rules", newPolicies, newRules)
-//	return nil
-//}
+func deployGlue(awsSession *session.Session, outputs map[string]string) {
+	deployTemplate(awsSession, glueTemplate, outputs["SourceBucket"], glueStack, map[string]string{
+		"ProcessedDataBucket": outputs["ProcessedDataBucket"],
+	})
+
+	// Athena views are created via API call because CF is not well supported. Workgroup "primary" is default.
+	const workgroup = "primary"
+	athenaBucket := outputs["AthenaResultsBucket"]
+	if err := awsathena.WorkgroupAssociateS3(awsSession, workgroup, athenaBucket); err != nil {
+		logger.Fatalf("failed to associate %s Athena workgroup with %s bucket: %v", workgroup, athenaBucket, err)
+	}
+	if err := athenaviews.CreateOrReplaceViews(athenaBucket); err != nil {
+		logger.Fatalf("failed to create/replace athena views for %s bucket: %v", athenaBucket, err)
+	}
+}
+
+// After the main stack is deployed, we need to make several manual API calls
+func postDeploySetup(awsSession *session.Session, settings *config.PantherConfig, outputs map[string]string) error {
+	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
+	userPoolID := outputs["WebApplicationUserPoolId"]
+	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
+	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
+		MfaConfiguration: aws.String("ON"),
+		SoftwareTokenMfaConfiguration: &cognitoidentityprovider.SoftwareTokenMfaConfigType{
+			Enabled: aws.Bool(true),
+		},
+		UserPoolId: &userPoolID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to enable TOTP for user pool %s: %v", userPoolID, err)
+	}
+
+	if err := inviteFirstUser(awsSession); err != nil {
+		return err
+	}
+
+	return initializeAnalysisSets(awsSession, outputs["AnalysisApiEndpoint"], settings)
+}
+
+// If the users list is empty (e.g. on the initial deploy), create the first user.
+func inviteFirstUser(awsSession *session.Session) error {
+	input := &usermodels.LambdaInput{
+		ListUsers: &usermodels.ListUsersInput{},
+	}
+	var output usermodels.ListUsersOutput
+	if err := invokeLambda(awsSession, "panther-users-api", input, &output); err != nil {
+		return fmt.Errorf("failed to list users: %v", err)
+	}
+	if len(output.Users) > 0 {
+		return nil
+	}
+
+	// Prompt the user for basic information.
+	logger.Info("setting up initial Panther admin user...")
+	fmt.Println()
+	firstName := promptUser("First name: ", nonemptyValidator)
+	lastName := promptUser("Last name: ", nonemptyValidator)
+	email := promptUser("Email: ", emailValidator)
+	defaultOrgName := firstName + "-" + lastName
+	orgName := promptUser("Company/Team name ("+defaultOrgName+"): ", nil)
+	if orgName == "" {
+		orgName = defaultOrgName
+	}
+
+	// users-api.InviteUser
+	input = &usermodels.LambdaInput{
+		InviteUser: &usermodels.InviteUserInput{
+			GivenName:  &firstName,
+			FamilyName: &lastName,
+			Email:      &email,
+		},
+	}
+	if err := invokeLambda(awsSession, "panther-users-api", input, nil); err != nil {
+		return err
+	}
+	logger.Infof("invite sent to %s: check your email! (it may be in spam)", email)
+
+	// organizations-api.UpdateSettings
+	updateSettingsInput := &orgmodels.LambdaInput{
+		UpdateSettings: &orgmodels.UpdateSettingsInput{DisplayName: &orgName, Email: &email},
+	}
+	return invokeLambda(awsSession, "panther-organization-api", &updateSettingsInput, nil)
+}
+
+// Install Python rules/policies if they don't already exist.
+func initializeAnalysisSets(awsSession *session.Session, endpoint string, settings *config.PantherConfig) error {
+	httpClient := gatewayapi.GatewayClient(awsSession)
+	apiClient := client.NewHTTPClientWithConfig(nil, client.DefaultTransportConfig().
+		WithBasePath("/v1").WithHost(endpoint))
+
+	policies, err := apiClient.Operations.ListPolicies(&operations.ListPoliciesParams{
+		PageSize:   aws.Int64(1),
+		HTTPClient: httpClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list existing policies: %v", err)
+	}
+
+	rules, err := apiClient.Operations.ListRules(&operations.ListRulesParams{
+		PageSize:   aws.Int64(1),
+		HTTPClient: httpClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list existing rules: %v", err)
+	}
+
+	if len(policies.Payload.Policies) > 0 || len(rules.Payload.Rules) > 0 {
+		logger.Debug("deploy: initial analysis set ignored: policies and/or rules already exist")
+		return nil
+	}
+
+	var newRules, newPolicies int64
+	for _, path := range settings.Setup.InitialAnalysisSets {
+		logger.Info("deploy: uploading initial analysis pack " + path)
+		var contents []byte
+		if strings.HasPrefix(path, "file://") {
+			contents = readFile(strings.TrimPrefix(path, "file://"))
+		} else {
+			contents, err = download(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		// BulkUpload to panther-analysis-api
+		encoded := base64.StdEncoding.EncodeToString(contents)
+		response, err := apiClient.Operations.BulkUpload(&operations.BulkUploadParams{
+			Body: &analysismodels.BulkUpload{
+				Data:   analysismodels.Base64zipfile(encoded),
+				UserID: mageUserID,
+			},
+			HTTPClient: httpClient,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to upload %s: %v", path, err)
+		}
+
+		newRules += *response.Payload.NewRules
+		newPolicies += *response.Payload.NewPolicies
+	}
+
+	logger.Infof("deploy: initialized with %d policies and %d rules", newPolicies, newRules)
+	return nil
+}
