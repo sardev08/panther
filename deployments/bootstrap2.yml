@@ -126,22 +126,22 @@ Outputs:
     Value: !Ref AnalysisApi
   AnalysisApiEndpoint:
     Description: HTTPS endpoint for the analysis api
-    Value: !Sub https://${AnalysisApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+    Value: !Sub ${AnalysisApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
   ComplianceApiId:
     Description: Compliance API Gateway ID
     Value: !Ref ComplianceApi
   ComplianceApiEndpoint:
     Description: HTTPS endpoint for the compliance api
-    Value: !Sub https://${ComplianceApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+    Value: !Sub ${ComplianceApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
   RemediationApiId:
     Description: Remediation API Gateway ID
     Value: !Ref RemediationApi
   RemediationApiEndpoint:
     Description: HTTPS endpoint for the remediation api
-    Value: !Sub https://${RemediationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+    Value: !Sub ${RemediationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
   ResourcesApiId:
     Description: Resources API Gateway ID
     Value: !Ref ResourcesApi
   ResourcesApiEndpoint:
     Description: HTTPS endpoint for the resources api
-    Value: !Sub https://${ResourcesApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
+    Value: !Sub ${ResourcesApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}

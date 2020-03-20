@@ -85,7 +85,7 @@ func cfnPackage(templatePath, bucket, stack string) string {
 	}
 
 	// Discard the output unless running in verbose mode
-	logger.Infof("deploy: packaging %s assets in s3://%s (may take several minutes)", templatePath, bucket)
+	logger.Infof("deploy: packaging %s assets in s3://%s", templatePath, bucket)
 	if err := sh.Run("aws", args...); err != nil {
 		logger.Fatalf("aws cloudformation package %s failed: %v", templatePath, err)
 	}
@@ -195,7 +195,7 @@ func createChangeSet(
 		createInput.TemplateURL = &upload.Location
 	}
 
-	logger.Infof("deploy: %s CloudFormation stack %s (may take several minutes)", changeSetType, stack)
+	logger.Infof("deploy: %s CloudFormation stack %s", changeSetType, stack)
 	if _, err = client.CreateChangeSet(createInput); err != nil {
 		logger.Fatalf("failed to create change set for stack %s: %v", stack, err)
 	}

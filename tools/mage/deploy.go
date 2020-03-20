@@ -289,10 +289,10 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 		deployTemplate(awsSession, appsyncTemplate, sourceBucket, appsyncStack, map[string]string{
 			"ApiId":          outputs["GraphQLApiId"],
 			"ServiceRole":    outputs["AppsyncServiceRoleArn"],
-			"AnalysisApi":    outputs["AnalysisApiEndpoint"],
-			"ComplianceApi":  outputs["ComplianceApiEndpoint"],
-			"RemediationApi": outputs["RemediationApiEndpoint"],
-			"ResourcesApi":   outputs["ResourcesApiEndpoint"],
+			"AnalysisApi":    "https://" + outputs["AnalysisApiEndpoint"],
+			"ComplianceApi":  "https://" + outputs["ComplianceApiEndpoint"],
+			"RemediationApi": "https://" + outputs["RemediationApiEndpoint"],
+			"ResourcesApi":   "https://" + outputs["ResourcesApiEndpoint"],
 		})
 		result <- appsyncStack
 	}(finishedStacks)
@@ -375,6 +375,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}
 
 	// Monitoring has to be deployed after all log groups have been created
+	// TODO - alarms take a long time, maybe split monitoring stack into dashboards/alarms/metrics
 	go func(result chan string) {
 		deployTemplate(awsSession, monitoringTemplate, outputs["SourceBucket"], monitoringStack, map[string]string{
 			"AppsyncId":            outputs["GraphQLApiId"],
@@ -417,7 +418,7 @@ func deployGlue(awsSession *session.Session, outputs map[string]string) {
 // After the main stack is deployed, we need to make several manual API calls
 func postDeploySetup(awsSession *session.Session, settings *config.PantherConfig, outputs map[string]string) error {
 	// Enable software 2FA for the Cognito user pool - this is not yet supported in CloudFormation.
-	userPoolID := outputs["WebApplicationUserPoolId"]
+	userPoolID := outputs["UserPoolId"]
 	logger.Debugf("deploy: enabling TOTP for user pool %s", userPoolID)
 	_, err := cognitoidentityprovider.New(awsSession).SetUserPoolMfaConfig(&cognitoidentityprovider.SetUserPoolMfaConfigInput{
 		MfaConfiguration: aws.String("ON"),
