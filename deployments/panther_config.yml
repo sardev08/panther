@@ -64,7 +64,8 @@ Monitoring:
   TracingMode: ''
 
 Setup:
-  # List of policy/rule sets to install when Panther is FIRST deployed.
+  # List of policy/rule sets to install if the existing ruleset is empty
+  # (e.g. when Panther is first deployed).
   #
   # Entries can be URLs or file:// paths that point to a .zip file.
   # If the analysis-api is non-empty, this setting is ignored and you can instead

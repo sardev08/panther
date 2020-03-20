@@ -322,8 +322,10 @@ func uploadLayer(awsSession *session.Session, libs []string, bucket, key string)
 func deployMainStacks(awsSession *session.Session, settings *config.PantherConfig, accountID string, outputs map[string]string) {
 	finishedStacks := make(chan string)
 	sourceBucket := outputs["SourceBucket"]
+	parallelStacks := 0
 
 	// Alarms
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, alarmsTemplate, sourceBucket, alarmsStack, map[string]string{
 			"AppsyncId":            outputs["GraphQLApiId"],
@@ -334,6 +336,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Appsync
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, appsyncTemplate, sourceBucket, appsyncStack, map[string]string{
 			"ApiId":          outputs["GraphQLApiId"],
@@ -347,6 +350,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Cloud security
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, cloudsecTemplate, sourceBucket, cloudsecStack, map[string]string{
 			"AnalysisApiId":         outputs["AnalysisApiId"],
@@ -370,6 +374,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Core
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, coreTemplate, sourceBucket, coreStack, map[string]string{
 			"AppDomainURL":           outputs["LoadBalancerUrl"],
@@ -389,18 +394,21 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Dashboards
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, dashboardTemplate, sourceBucket, dashboardStack, nil)
 		result <- dashboardStack
 	}(finishedStacks)
 
 	// Glue
+	parallelStacks++
 	go func(result chan string) {
 		deployGlue(awsSession, outputs)
 		result <- glueStack
 	}(finishedStacks)
 
 	// Log analysis
+	parallelStacks++
 	go func(result chan string) {
 		deployTemplate(awsSession, logAnalysisTemplate, sourceBucket, logAnalysisStack, map[string]string{
 			"AnalysisApiId":         outputs["AnalysisApiId"],
@@ -419,14 +427,16 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Web server
+	parallelStacks++
 	go func(result chan string) {
 		deployFrontend(awsSession, settings, accountID, sourceBucket, outputs)
 		result <- frontendStack
 	}(finishedStacks)
 
 	// Wait for stacks to finish
-	for i := 1; i <= 8; i++ {
-		logger.Infof("    √ stack %s finished (%d/10)", <-finishedStacks, i)
+	// There will be two stacks (onboarding + monitoring) after this one
+	for i := 1; i <= parallelStacks; i++ {
+		logger.Infof("    √ stack %s finished (%d/d)", <-finishedStacks, i, parallelStacks+2)
 	}
 
 	// Metric filters have to be deployed after all log groups have been created
@@ -444,8 +454,8 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	}(finishedStacks)
 
 	// Wait for onboarding and monitoring to finish
-	for i := 9; i <= 10; i++ {
-		logger.Infof("    √ stack %s finished (%d/10)", <-finishedStacks, i)
+	for i := parallelStacks + 1; i <= parallelStacks+2; i++ {
+		logger.Infof("    √ stack %s finished (%d/%d)", <-finishedStacks, i, parallelStacks+2)
 	}
 }
 
