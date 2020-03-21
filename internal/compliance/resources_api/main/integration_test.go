@@ -37,7 +37,7 @@ import (
 	"github.com/panther-labs/panther/pkg/testutils"
 )
 
-const stackName = "panther-bootstrap2"
+const stackName = "panther-bootstrap-gateway"
 
 var (
 	integrationTest bool

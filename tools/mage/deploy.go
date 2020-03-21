@@ -55,7 +55,7 @@ const (
 	// Bootstrap stacks
 	bootstrapStack    = "panther-bootstrap"
 	bootstrapTemplate = "deployments/bootstrap.yml"
-	gatewayStack      = "panther-bootstrap2"
+	gatewayStack      = "panther-bootstrap-gateway"
 	gatewayTemplate   = apiEmbeddedTemplate
 
 	// Main stacks

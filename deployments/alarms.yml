@@ -67,7 +67,7 @@ Resources:
     Properties:
       Parameters:
         AlarmTopicArn: !If [CreateAlarmSNSTopic, !Ref AlarmNotifications, !Ref AlarmTopicArn]
-      TemplateURL: ../out/deployments/monitoring/bootstrap2_alarms.json
+      TemplateURL: ../out/deployments/monitoring/bootstrap_gateway_alarms.json
 
   CloudSecurityAlarms:
     Type: AWS::CloudFormation::Stack

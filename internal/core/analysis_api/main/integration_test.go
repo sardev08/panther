@@ -46,7 +46,7 @@ import (
 
 const (
 	bootstrapStack      = "panther-bootstrap"
-	gatewayStack        = "panther-bootstrap2"
+	gatewayStack        = "panther-bootstrap-gateway"
 	tableName           = "panther-analysis"
 	policiesRoot        = "./test_policies"
 	policiesZipLocation = "./bulk_upload.zip"
