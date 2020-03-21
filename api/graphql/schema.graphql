@@ -102,6 +102,7 @@ type ComplianceIntegrationHealth {
 type AlertDetails {
   alertId: ID!
   ruleId: ID
+  title: String
   creationTime: AWSDateTime!
   updateTime: AWSDateTime!
   eventsMatched: Int!
@@ -117,6 +118,7 @@ type ListAlertsResponse {
 
 type AlertSummary {
   alertId: String!
+  title: String
   creationTime: AWSDateTime!
   eventsMatched: Int!
   updateTime: AWSDateTime!

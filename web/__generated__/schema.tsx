@@ -43,6 +43,7 @@ export type AlertDetails = {
   __typename?: 'AlertDetails';
   alertId: Scalars['ID'];
   ruleId?: Maybe<Scalars['ID']>;
+  title?: Maybe<Scalars['String']>;
   creationTime: Scalars['AWSDateTime'];
   updateTime: Scalars['AWSDateTime'];
   eventsMatched: Scalars['Int'];
@@ -54,6 +55,7 @@ export type AlertDetails = {
 export type AlertSummary = {
   __typename?: 'AlertSummary';
   alertId: Scalars['String'];
+  title?: Maybe<Scalars['String']>;
   creationTime: Scalars['AWSDateTime'];
   eventsMatched: Scalars['Int'];
   updateTime: Scalars['AWSDateTime'];
@@ -1270,6 +1272,7 @@ export type AlertDetailsResolvers<
 > = {
   alertId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   ruleId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  title?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   creationTime?: Resolver<ResolversTypes['AWSDateTime'], ParentType, ContextType>;
   updateTime?: Resolver<ResolversTypes['AWSDateTime'], ParentType, ContextType>;
   eventsMatched?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -1284,6 +1287,7 @@ export type AlertSummaryResolvers<
   ParentType extends ResolversParentTypes['AlertSummary'] = ResolversParentTypes['AlertSummary']
 > = {
   alertId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  title?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   creationTime?: Resolver<ResolversTypes['AWSDateTime'], ParentType, ContextType>;
   eventsMatched?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updateTime?: Resolver<ResolversTypes['AWSDateTime'], ParentType, ContextType>;
