@@ -34,11 +34,14 @@ export type AlertDetails = {
       Types.AlertDetails,
       | 'alertId'
       | 'ruleId'
+      | 'title'
+      | 'severity'
       | 'creationTime'
       | 'eventsMatched'
       | 'updateTime'
       | 'eventsLastEvaluatedKey'
       | 'events'
+      | 'dedupString'
     >
   >;
 };
@@ -48,11 +51,14 @@ export const AlertDetailsDocument = gql`
     alert(input: $input) {
       alertId
       ruleId
+      title
+      severity
       creationTime
       eventsMatched
       updateTime
       eventsLastEvaluatedKey
       events
+      dedupString
     }
   }
 `;
