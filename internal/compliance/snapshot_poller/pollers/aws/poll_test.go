@@ -22,12 +22,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/panther-labs/panther/internal/compliance/snapshot_poller/pollers/aws/awstest"
 )
 
 // Unit tests
 func TestAssumeRoleMissingParams(t *testing.T) {
-	assumeRoleProviderFunc = awstest.STSAssumeRoleProviderMock
 	assert.Panics(t, func() { _ = assumeRole(nil, nil) })
 }
