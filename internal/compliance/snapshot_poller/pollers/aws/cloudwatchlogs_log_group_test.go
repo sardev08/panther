@@ -72,7 +72,6 @@ func TestBuildCloudWatchLogsLogGroupSnapshot(t *testing.T) {
 func TestCloudWatchLogsLogGroupPoller(t *testing.T) {
 	awstest.MockCloudWatchLogsForSetup = awstest.BuildMockCloudWatchLogsSvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	CloudWatchLogsClientFunc = awstest.SetupMockCloudWatchLogs
 
 	resources, err := PollCloudWatchLogsLogGroups(&awsmodels.ResourcePollerInput{
@@ -90,7 +89,6 @@ func TestCloudWatchLogsLogGroupPoller(t *testing.T) {
 func TestCloudWatchLogsLogGroupPollerError(t *testing.T) {
 	awstest.MockCloudWatchLogsForSetup = awstest.BuildMockCloudWatchLogsSvcAllError()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	AcmClientFunc = awstest.SetupMockAcm
 
 	resources, err := PollCloudWatchLogsLogGroups(&awsmodels.ResourcePollerInput{

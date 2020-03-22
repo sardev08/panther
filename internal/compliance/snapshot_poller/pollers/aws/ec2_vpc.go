@@ -38,7 +38,6 @@ import (
 var EC2ClientFunc = setupEC2Client
 
 func setupEC2Client(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return ec2.New(sess, cfg)
 }
 
@@ -237,13 +236,7 @@ func PollEc2Vpcs(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddRe
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "ec2") {
 		zap.L().Debug("building EC2 VPC snapshots", zap.String("region", *regionID))
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		ec2Svc := EC2ClientFunc(sess, &aws.Config{Credentials: creds}).(ec2iface.EC2API)
+		ec2Svc := getClient(pollerInput, "ec2", *regionID).(ec2iface.EC2API)
 
 		// Start with generating a list of all VPCs
 		vpcs := describeVpcs(ec2Svc)

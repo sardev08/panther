@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/aws/aws-sdk-go/service/ecs/ecsiface"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	apimodels "github.com/panther-labs/panther/api/gateway/resources/models"
@@ -37,7 +36,6 @@ import (
 var EcsClientFunc = setupEcsClient
 
 func setupEcsClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return ecs.New(sess, cfg)
 }
 
@@ -304,31 +302,7 @@ func PollEcsClusters(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.A
 	ecsClusterSnapshots := make(map[string]*awsmodels.EcsCluster)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "ecs") {
-		sess, err := session.NewSession(&aws.Config{Region: regionID})
-		if err != nil {
-			// The session failed to create, log an error and continue to the next region
-			zap.L().Error(
-				"unable to create aws session",
-				zap.String("region", *regionID),
-				zap.String("service", "ecs"),
-				zap.Error(errors.WithStack(err)),
-			)
-			continue
-		}
-
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			// The client failed to create, log an error and continue to the next region
-			zap.L().Error(
-				"unable to create aws client",
-				zap.String("region", *regionID),
-				zap.String("service", "ecs"),
-				zap.Error(errors.WithStack(err)),
-			)
-			continue
-		}
-
-		ecsSvc := EcsClientFunc(sess, &aws.Config{Credentials: creds}).(ecsiface.ECSAPI)
+		ecsSvc := getClient(pollerInput, "ecs", *regionID).(ecsiface.ECSAPI)
 
 		// Start with generating a list of all clusters
 		clusters := listClusters(ecsSvc)

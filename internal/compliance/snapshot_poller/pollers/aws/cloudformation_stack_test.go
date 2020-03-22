@@ -99,7 +99,6 @@ func TestCloudFormationStackBuildSnapshotError(t *testing.T) {
 func TestCloudFormationStackPoller(t *testing.T) {
 	awstest.MockCloudFormationForSetup = awstest.BuildMockCloudFormationSvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	CloudFormationClientFunc = awstest.SetupMockCloudFormation
 
 	resources, err := PollCloudFormationStacks(&awsmodels.ResourcePollerInput{
@@ -118,7 +117,6 @@ func TestCloudFormationStackPoller(t *testing.T) {
 func TestCloudFormationStackPollerError(t *testing.T) {
 	awstest.MockCloudFormationForSetup = awstest.BuildMockCloudFormationSvcAllError()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	CloudFormationClientFunc = awstest.SetupMockCloudFormation
 
 	resources, err := PollCloudFormationStacks(&awsmodels.ResourcePollerInput{
@@ -140,7 +138,6 @@ func TestCloudFormationStackDescribeDriftDetectionStatusInProgress(t *testing.T)
 	defer func() { awstest.StackDriftDetectionInProgress = false }()
 	awstest.MockCloudFormationForSetup = awstest.BuildMockCloudFormationSvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	CloudFormationClientFunc = awstest.SetupMockCloudFormation
 
 	resources, err := PollCloudFormationStacks(&awsmodels.ResourcePollerInput{

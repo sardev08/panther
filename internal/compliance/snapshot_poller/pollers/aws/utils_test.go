@@ -1,4 +1,4 @@
-package awstest
+package aws
 
 /**
  * Panther is a scalable, powerful, cloud-native SIEM written in Golang/React.
@@ -19,17 +19,21 @@ package awstest
  */
 
 import (
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	awsmodels "github.com/panther-labs/panther/internal/compliance/snapshot_poller/models/aws"
+	"github.com/panther-labs/panther/internal/compliance/snapshot_poller/pollers/aws/awstest"
 )
 
-// AssumeRoleMock generates a set of fake credentials for testing.
-func AssumeRoleMock(
-	pollerInput *awsmodels.ResourcePollerInput,
-	sess *session.Session,
-) *credentials.Credentials {
+func init() {
+	// sets an empty session for tests
+	newSessionFunc = func(region string) *session.Session {
+		return &session.Session{
+			Config: &aws.Config{Region: aws.String(region)},
+		}
+	}
 
-	return &credentials.Credentials{}
+	// mock the assume role
+	assumeRoleFunc = awstest.AssumeRoleMock
+	assumeRoleProviderFunc = awstest.STSAssumeRoleProviderMock
 }

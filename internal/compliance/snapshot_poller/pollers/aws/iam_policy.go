@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"go.uber.org/zap"
@@ -168,13 +167,7 @@ func buildIAMPolicySnapshot(iamSvc iamiface.IAMAPI, policy *iam.Policy) *awsmode
 // PollIamPolicies gathers information on each IAM policy for an AWS account.
 func PollIamPolicies(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddResourceEntry, error) {
 	zap.L().Debug("starting IAM Policy resource poller")
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	iamSvc := IAMClientFunc(sess, &aws.Config{Credentials: creds}).(iamiface.IAMAPI)
+	iamSvc := getClient(pollerInput, "iam", defaultRegion).(iamiface.IAMAPI)
 
 	// Start with generating a list of all policies
 	policies, listErr := listPolicies(iamSvc)

@@ -41,7 +41,6 @@ var (
 )
 
 func setupRedshiftClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return redshift.New(sess, cfg)
 }
 
@@ -183,13 +182,7 @@ func PollRedshiftClusters(pollerInput *awsmodels.ResourcePollerInput) ([]*apimod
 	redshiftClusterSnapshots := make(map[string]*awsmodels.RedshiftCluster)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "redshift") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		redshiftSvc := RedshiftClientFunc(sess, &aws.Config{Credentials: creds}).(redshiftiface.RedshiftAPI)
+		redshiftSvc := getClient(pollerInput, "redshift", *regionID).(redshiftiface.RedshiftAPI)
 
 		// Start with generating a list of all clusters
 		clusters := describeClusters(redshiftSvc)

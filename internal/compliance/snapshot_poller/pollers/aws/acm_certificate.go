@@ -38,7 +38,6 @@ var (
 )
 
 func setupAcmClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return acm.New(sess, cfg)
 }
 
@@ -162,14 +161,7 @@ func PollAcmCertificates(pollerInput *awsmodels.ResourcePollerInput) ([]*apimode
 	acmCertificateSnapshots := make(map[string]*awsmodels.AcmCertificate)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "acm") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		acmSvc := AcmClientFunc(sess, &aws.Config{Credentials: creds}).(acmiface.ACMAPI)
+		acmSvc := getClient(pollerInput, "acm", *regionID).(acmiface.ACMAPI)
 
 		// Start with generating a list of all certificates
 		certificates := listCertificates(acmSvc)

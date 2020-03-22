@@ -46,7 +46,6 @@ var (
 )
 
 func setupKmsClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return kms.New(sess, cfg)
 }
 
@@ -212,13 +211,7 @@ func PollKmsKeys(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddRe
 	kmsKeySnapshots := make(map[string]*awsmodels.KmsKey)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "kms") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		kmsSvc := KmsClientFunc(sess, &aws.Config{Credentials: creds}).(kmsiface.KMSAPI)
+		kmsSvc := getClient(pollerInput, "kms", *regionID).(kmsiface.KMSAPI)
 
 		// Start with generating a list of all keys
 		keys := listKeys(kmsSvc)

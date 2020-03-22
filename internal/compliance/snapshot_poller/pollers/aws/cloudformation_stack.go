@@ -52,7 +52,6 @@ var (
 )
 
 func setupCloudFormationClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return cloudformation.New(sess, cfg)
 }
 
@@ -260,13 +259,7 @@ func PollCloudFormationStacks(pollerInput *awsmodels.ResourcePollerInput) ([]*ap
 	cloudformationStackSnapshots := make(map[string]*awsmodels.CloudFormationStack)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "cloudformation") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		var cloudformationSvc = CloudFormationClientFunc(sess, &aws.Config{Credentials: creds}).(cloudformationiface.CloudFormationAPI)
+		cloudformationSvc := getClient(pollerInput, "cloudformation", *regionID).(cloudformationiface.CloudFormationAPI)
 
 		// Start with generating a list of all stacks
 		stacks := describeStacks(cloudformationSvc)

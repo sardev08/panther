@@ -39,7 +39,6 @@ var (
 )
 
 func setupCloudTrailClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return cloudtrail.New(sess, cfg)
 }
 
@@ -223,13 +222,7 @@ func PollCloudTrails(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.A
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "cloudtrail") {
 		zap.L().Debug("building CloudTrail snapshots", zap.String("region", *regionID))
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		cloudTrailSvc := CloudTrailClientFunc(sess, &aws.Config{Credentials: creds}).(cloudtrailiface.CloudTrailAPI)
+		cloudTrailSvc := getClient(pollerInput, "cloudtrail", *regionID).(cloudtrailiface.CloudTrailAPI)
 
 		// Build the list of all CloudTrails for the given region
 		regionTrails := buildCloudTrails(cloudTrailSvc, regionID)

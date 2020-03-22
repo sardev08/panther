@@ -30,7 +30,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/cenkalti/backoff"
@@ -517,13 +516,7 @@ func buildIAMRootUserSnapshot() *awsmodels.IAMRootUser {
 // This function returns a slice of Events.
 func PollIAMUsers(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddResourceEntry, error) {
 	zap.L().Debug("starting IAM User resource poller")
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	iamSvc := IAMClientFunc(sess, &aws.Config{Credentials: creds}).(iamiface.IAMAPI)
+	iamSvc := getClient(pollerInput, "iam", defaultRegion).(iamiface.IAMAPI)
 
 	// List all IAM Users in the account
 	users := listUsers(iamSvc)
@@ -532,6 +525,7 @@ func PollIAMUsers(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddR
 	}
 
 	// Build the credential report for all users
+	var err error
 	userCredentialReports, err = buildCredentialReport(iamSvc)
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {

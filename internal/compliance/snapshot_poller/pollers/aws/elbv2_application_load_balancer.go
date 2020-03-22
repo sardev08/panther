@@ -42,7 +42,6 @@ var (
 )
 
 func setupElbv2Client(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return elbv2.New(sess, cfg)
 }
 
@@ -242,15 +241,8 @@ func PollElbv2ApplicationLoadBalancers(pollerInput *awsmodels.ResourcePollerInpu
 	elbv2LoadBalancerSnapshots := make(map[string]*awsmodels.Elbv2ApplicationLoadBalancer)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "elasticloadbalancing") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		config := &aws.Config{Credentials: creds}
-		elbv2Svc := Elbv2ClientFunc(sess, config).(elbv2iface.ELBV2API)
-		wafRegionalSvc := WafRegionalClientFunc(sess, config).(wafregionaliface.WAFRegionalAPI)
+		elbv2Svc := getClient(pollerInput, "elbv2", *regionID).(elbv2iface.ELBV2API)
+		wafRegionalSvc := getClient(pollerInput, "waf-regional", *regionID).(wafregionaliface.WAFRegionalAPI)
 
 		// Start with generating a list of all load balancers
 		loadBalancers := describeLoadBalancers(elbv2Svc)

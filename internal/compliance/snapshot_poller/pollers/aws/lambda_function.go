@@ -39,7 +39,6 @@ var (
 )
 
 func setupLambdaClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return lambda.New(sess, cfg)
 }
 
@@ -178,13 +177,7 @@ func PollLambdaFunctions(pollerInput *awsmodels.ResourcePollerInput) ([]*apimode
 	lambdaFunctionSnapshots := make(map[string]*awsmodels.LambdaFunction)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "lambda") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		var lambdaSvc = LambdaClientFunc(sess, &aws.Config{Credentials: creds}).(lambdaiface.LambdaAPI)
+		lambdaSvc := getClient(pollerInput, "lambda", *regionID).(lambdaiface.LambdaAPI)
 
 		// Start with generating a list of all functions
 		functions := listFunctions(lambdaSvc)

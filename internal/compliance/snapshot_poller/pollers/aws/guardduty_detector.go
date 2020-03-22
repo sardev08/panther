@@ -37,7 +37,6 @@ var (
 )
 
 func setupGuardDutyClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return guardduty.New(sess, cfg)
 }
 
@@ -154,13 +153,7 @@ func PollGuardDutyDetectors(pollerInput *awsmodels.ResourcePollerInput) ([]*apim
 
 	// Get detectors in each region
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "guardduty") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		guardDutySvc := GuardDutyClientFunc(sess, &aws.Config{Credentials: creds}).(guarddutyiface.GuardDutyAPI)
+		guardDutySvc := getClient(pollerInput, "guardduty", *regionID).(guarddutyiface.GuardDutyAPI)
 
 		// Start with generating a list of all detectors
 		detectors := listDetectors(guardDutySvc)

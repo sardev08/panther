@@ -45,12 +45,10 @@ var (
 )
 
 func setupWafRegionalClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return wafregional.New(sess, cfg)
 }
 
 func setupWafClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return waf.New(sess, cfg)
 }
 
@@ -245,13 +243,7 @@ func PollWafRegionalWebAcls(pollerInput *awsmodels.ResourcePollerInput) ([]*apim
 	// Get regional ACLs for Application Load balancers and API gateways using WAF Regional API
 	var resources []*apimodels.AddResourceEntry
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "waf-regional") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		wafRegionalSvc := WafRegionalClientFunc(sess, &aws.Config{Credentials: creds}).(wafregionaliface.WAFRegionalAPI)
+		wafRegionalSvc := getClient(pollerInput, "waf-regional", *regionID).(wafregionaliface.WAFRegionalAPI)
 
 		// Start with generating a list of all regional web acls
 		regionalWebACLsSummaries := listWebAcls(wafRegionalSvc)
@@ -287,13 +279,7 @@ func PollWafWebAcls(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.Ad
 	zap.L().Debug("starting global WAF Web Acl resource poller")
 
 	// Get global ACLs for CloudFront distribution using WAF API
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	wafSvc := WafClientFunc(sess, &aws.Config{Credentials: creds}).(wafiface.WAFAPI)
+	wafSvc := getClient(pollerInput, "waf", defaultRegion).(wafiface.WAFAPI)
 
 	// Start with generating a list of all global web acls
 	globalWebAclsSummaries := listWebAcls(wafSvc)

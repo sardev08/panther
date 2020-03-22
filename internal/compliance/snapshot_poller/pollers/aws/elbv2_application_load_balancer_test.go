@@ -128,7 +128,6 @@ func TestElbv2ApplicationLoadBalancersPoller(t *testing.T) {
 	awstest.MockElbv2ForSetup = awstest.BuildMockElbv2SvcAll()
 	awstest.MockWafRegionalForSetup = awstest.BuildMockWafRegionalSvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	Elbv2ClientFunc = awstest.SetupMockElbv2
 	WafRegionalClientFunc = awstest.SetupMockWafRegional
 
@@ -156,7 +155,6 @@ func TestElbv2ApplicationLoadBalancersPollerError(t *testing.T) {
 	awstest.MockElbv2ForSetup = awstest.BuildMockElbv2SvcAllError()
 	awstest.MockWafRegionalForSetup = awstest.BuildMockWafRegionalSvcAllError()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	Elbv2ClientFunc = awstest.SetupMockElbv2
 	WafRegionalClientFunc = awstest.SetupMockWafRegional
 

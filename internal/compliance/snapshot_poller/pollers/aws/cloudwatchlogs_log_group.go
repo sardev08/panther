@@ -40,7 +40,6 @@ var (
 )
 
 func setupCloudWatchLogsClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return cloudwatchlogs.New(sess, cfg)
 }
 
@@ -150,13 +149,7 @@ func PollCloudWatchLogsLogGroups(pollerInput *awsmodels.ResourcePollerInput) ([]
 	logGroupSnapshots := make(map[string]*awsmodels.CloudWatchLogsLogGroup)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "logs") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		var cloudwatchLogGroupSvc = CloudWatchLogsClientFunc(sess, &aws.Config{Credentials: creds}).(cloudwatchlogsiface.CloudWatchLogsAPI)
+		cloudwatchLogGroupSvc := getClient(pollerInput, "cloudwatchlogs", *regionID).(cloudwatchlogsiface.CloudWatchLogsAPI)
 
 		// Start with generating a list of all log groups
 		logGroups := describeLogGroups(cloudwatchLogGroupSvc)

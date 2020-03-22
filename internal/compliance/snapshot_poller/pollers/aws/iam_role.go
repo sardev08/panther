@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"go.uber.org/zap"
@@ -202,13 +201,7 @@ func BuildIAMRoleSnapshot(iamSvc iamiface.IAMAPI, role *iam.Role) *awsmodels.IAM
 // PollIAMRoles generates a snapshot for each IAM Role.
 func PollIAMRoles(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddResourceEntry, error) {
 	zap.L().Debug("starting IAM Role resource poller")
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	iamSvc := IAMClientFunc(sess, &aws.Config{Credentials: creds}).(iamiface.IAMAPI)
+	iamSvc := getClient(pollerInput, "iam", defaultRegion).(iamiface.IAMAPI)
 
 	// List all IAM Roles in the account
 	roles := listRoles(iamSvc)

@@ -46,7 +46,6 @@ var (
 )
 
 func setupDynamoDBClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return dynamodb.New(sess, cfg)
 }
 
@@ -238,15 +237,9 @@ func PollDynamoDBTables(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodel
 	dynamoDBTableSnapshots := make(map[string]*awsmodels.DynamoDBTable)
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "dynamodb") {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		config := &aws.Config{Credentials: creds}
-		dynamoDBSvc := DynamoDBClientFunc(sess, config).(dynamodbiface.DynamoDBAPI)
-		applicationAutoScalingSvc := ApplicationAutoScalingClientFunc(sess, config).(applicationautoscalingiface.ApplicationAutoScalingAPI)
+		dynamoDBSvc := getClient(pollerInput, "dynamodb", *regionID).(dynamodbiface.DynamoDBAPI)
+		applicationAutoScalingSvc := getClient(
+			pollerInput, "applicationautoscaling", *regionID).(applicationautoscalingiface.ApplicationAutoScalingAPI)
 
 		// Start with generating a list of all tables
 		tables := listTables(dynamoDBSvc)

@@ -38,7 +38,6 @@ var (
 )
 
 func setupRDSClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return rds.New(sess, cfg)
 }
 
@@ -234,13 +233,7 @@ func PollRDSInstances(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.
 
 	regions := utils.GetServiceRegions(pollerInput.Regions, "rds")
 	for _, regionID := range regions {
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		rdsSvc := RDSClientFunc(sess, &aws.Config{Credentials: creds}).(rdsiface.RDSAPI)
+		rdsSvc := getClient(pollerInput, "rds", *regionID).(rdsiface.RDSAPI)
 
 		// Start with generating a list of all instances
 		instances := describeDBInstances(rdsSvc)

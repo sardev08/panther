@@ -122,7 +122,6 @@ func TestDynamoDBPoller(t *testing.T) {
 	awstest.MockDynamoDBForSetup = awstest.BuildMockDynamoDBSvcAll()
 	awstest.MockApplicationAutoScalingForSetup = awstest.BuildMockApplicationAutoScalingSvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	DynamoDBClientFunc = awstest.SetupMockDynamoDB
 	ApplicationAutoScalingClientFunc = awstest.SetupMockApplicationAutoScaling
 
@@ -150,7 +149,6 @@ func TestDynamoDBPollerError(t *testing.T) {
 	awstest.MockDynamoDBForSetup = awstest.BuildMockDynamoDBSvcAllError()
 	awstest.MockApplicationAutoScalingForSetup = awstest.BuildMockApplicationAutoScalingSvcAllError()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	DynamoDBClientFunc = awstest.SetupMockDynamoDB
 
 	resources, err := PollDynamoDBTables(&awsmodels.ResourcePollerInput{

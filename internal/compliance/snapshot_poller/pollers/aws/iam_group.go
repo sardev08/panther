@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"go.uber.org/zap"
@@ -191,13 +190,7 @@ func buildIamGroupSnapshot(iamSvc iamiface.IAMAPI, group *iam.Group) *awsmodels.
 // PollIamGroups gathers information on each IAM Group for an AWS account.
 func PollIamGroups(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddResourceEntry, error) {
 	zap.L().Debug("starting IAM Group resource poller")
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	iamSvc := IAMClientFunc(sess, &aws.Config{Credentials: creds}).(iamiface.IAMAPI)
+	iamSvc := getClient(pollerInput, "iam", defaultRegion).(iamiface.IAMAPI)
 
 	// Start with generating a list of all keys
 	groups := listGroups(iamSvc)

@@ -47,7 +47,6 @@ func setupS3BucketSnapshots() {
 }
 
 func setupS3Client(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return s3.New(sess, cfg)
 }
 
@@ -352,13 +351,7 @@ func PollS3Buckets(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.Add
 	// Clear the previously collected S3 Bucket Snapshots
 	setupS3BucketSnapshots()
 
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	s3Svc := S3ClientFunc(sess, &aws.Config{Credentials: creds}).(s3iface.S3API)
+	s3Svc := getClient(pollerInput, "s3", defaultRegion).(s3iface.S3API)
 
 	// Start with generating a list of all buckets
 	allBuckets := listBuckets(s3Svc)
@@ -393,23 +386,10 @@ func PollS3Buckets(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.Add
 
 	var resources []*apimodels.AddResourceEntry
 	for region, buckets := range bucketsByRegion {
-		// Build session for this region
-		// TODO possible optimization by not building us-west-2 since it's already built
-		buildSess := session.Must(session.NewSession(&aws.Config{Region: aws.String(region)}))
-		buildCreds, err := AssumeRoleFunc(pollerInput, buildSess)
-		if err != nil {
-			zap.L().Error(
-				"error assuming role for S3 snapshot building",
-				zap.String("region", region),
-				zap.Error(err),
-			)
-			continue
-		}
-		buildConfig := &aws.Config{Credentials: buildCreds}
-		buildSvc := S3ClientFunc(buildSess, buildConfig).(s3iface.S3API)
+		s3Svc := getClient(pollerInput, "s3", region).(s3iface.S3API)
 
 		for _, bucket := range buckets {
-			s3BucketSnapshot := buildS3BucketSnapshot(buildSvc, bucket)
+			s3BucketSnapshot := buildS3BucketSnapshot(s3Svc, bucket)
 
 			resourceID := strings.Join(
 				[]string{"arn", pollerInput.AuthSourceParsedARN.Partition, "s3::", *s3BucketSnapshot.Name},

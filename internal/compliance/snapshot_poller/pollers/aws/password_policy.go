@@ -38,7 +38,6 @@ var (
 )
 
 func setupIAMClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return iam.New(sess, cfg)
 }
 
@@ -69,13 +68,7 @@ func getPasswordPolicy(svc iamiface.IAMAPI) (*iam.PasswordPolicy, error) {
 // PollPasswordPolicy gathers information on all PasswordPolicy in an AWS account.
 func PollPasswordPolicy(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodels.AddResourceEntry, error) {
 	zap.L().Debug("starting Password Policy resource poller")
-	sess := session.Must(session.NewSession(&aws.Config{}))
-	creds, err := AssumeRoleFunc(pollerInput, sess)
-	if err != nil {
-		return nil, err
-	}
-
-	iamSvc := IAMClientFunc(sess, &aws.Config{Credentials: creds}).(iamiface.IAMAPI)
+	iamSvc := getClient(pollerInput, "iam", defaultRegion).(iamiface.IAMAPI)
 
 	anyExist := true
 	passwordPolicy, getErr := getPasswordPolicy(iamSvc)
@@ -85,7 +78,7 @@ func PollPasswordPolicy(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodel
 			case iam.ErrCodeNoSuchEntityException:
 				anyExist = false
 			default:
-				utils.LogAWSError("IAM.GetPasswordPolicy", err)
+				utils.LogAWSError("IAM.GetPasswordPolicy", getErr)
 			}
 		}
 	}

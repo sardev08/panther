@@ -38,7 +38,6 @@ var (
 )
 
 func setupConfigServiceClient(sess *session.Session, cfg *aws.Config) interface{} {
-	cfg.MaxRetries = aws.Int(MaxRetries)
 	return configservice.New(sess, cfg)
 }
 
@@ -157,18 +156,12 @@ func PollConfigServices(pollerInput *awsmodels.ResourcePollerInput) ([]*apimodel
 
 	for _, regionID := range utils.GetServiceRegions(pollerInput.Regions, "config") {
 		zap.L().Debug("building Config snapshots", zap.String("region", *regionID))
-		sess := session.Must(session.NewSession(&aws.Config{Region: regionID}))
-		creds, err := AssumeRoleFunc(pollerInput, sess)
-		if err != nil {
-			return nil, err
-		}
-
-		configServiceSvc := ConfigServiceClientFunc(sess, &aws.Config{Credentials: creds}).(configserviceiface.ConfigServiceAPI)
+		configServiceSvc := getClient(pollerInput, "configservice", *regionID).(configserviceiface.ConfigServiceAPI)
 
 		// Start with generating a list of all recorders
 		recorders, describeErr := describeConfigurationRecorders(configServiceSvc)
 		if describeErr != nil {
-			utils.LogAWSError("ConfigService.Describe", err)
+			utils.LogAWSError("ConfigService.Describe", describeErr)
 			continue
 		}
 

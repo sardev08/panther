@@ -115,7 +115,6 @@ func TestEC2BuildVpcSnapshot(t *testing.T) {
 func TestEC2PollVpcs(t *testing.T) {
 	awstest.MockEC2ForSetup = awstest.BuildMockEC2SvcAll()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	EC2ClientFunc = awstest.SetupMockEC2
 
 	resources, err := PollEc2Vpcs(&awsmodels.ResourcePollerInput{
@@ -138,7 +137,6 @@ func TestEC2PollVpcs(t *testing.T) {
 func TestEC2PollVpcsError(t *testing.T) {
 	awstest.MockEC2ForSetup = awstest.BuildMockEC2SvcAllError()
 
-	AssumeRoleFunc = awstest.AssumeRoleMock
 	EC2ClientFunc = awstest.SetupMockEC2
 
 	resources, err := PollEc2Vpcs(&awsmodels.ResourcePollerInput{
