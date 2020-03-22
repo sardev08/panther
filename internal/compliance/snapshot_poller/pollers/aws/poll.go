@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -44,7 +45,7 @@ const (
 
 var (
 	// Default region to use when building clients for the individual resource poller
-	defaultRegion = "us-west-2"
+	defaultRegion = endpoints.UsWest2RegionID
 
 	auditRoleName = os.Getenv("AUDIT_ROLE_NAME")
 

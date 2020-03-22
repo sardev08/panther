@@ -19,7 +19,6 @@ package aws
  */
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	"github.com/panther-labs/panther/internal/compliance/snapshot_poller/pollers/aws/awstest"
@@ -27,11 +26,7 @@ import (
 
 func init() {
 	// sets an empty session for tests
-	newSessionFunc = func(region string) *session.Session {
-		return &session.Session{
-			Config: &aws.Config{Region: aws.String(region)},
-		}
-	}
+	snapshotPollerSession = &session.Session{}
 
 	// mock the assume role
 	assumeRoleFunc = awstest.AssumeRoleMock

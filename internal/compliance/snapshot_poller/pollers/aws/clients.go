@@ -33,34 +33,18 @@ import (
 const (
 	// The amount of time credentials are valid
 	assumeRoleDuration = time.Hour
-	// Allows the credentials to trigger refreshing prior to the credentials actually expiring
-	assumeRoleExpiryWindow = 5 * time.Second
 	// retries on default session
 	maxRetries = 6
 )
 
 var (
-	newSessionFunc = newSession
+	snapshotPollerSession = session.Must(session.NewSession(&aws.Config{MaxRetries: aws.Int(maxRetries)}))
 
 	// assumeRoleFunc is the function to return valid AWS credentials.
 	assumeRoleFunc = assumeRole
 	// assumeRoleProviderFunc is the default function to setup the assume role provider.
 	assumeRoleProviderFunc = assumeRoleProvider
 )
-
-var sessionCache = make(map[string]*session.Session)
-
-func newSession(region string) (sess *session.Session) {
-	if sess = sessionCache[region]; sess != nil {
-		return sess
-	}
-
-	sess = session.Must(session.NewSession(&aws.Config{
-		Region:     aws.String(region),
-		MaxRetries: aws.Int(maxRetries)}))
-	sessionCache[region] = sess
-	return sess
-}
 
 // Key used for the client cache to neatly encapsulate an integration, service, and region
 type clientKey struct {
@@ -77,49 +61,54 @@ type cachedClient struct {
 var clientCache = make(map[clientKey]cachedClient)
 
 // Functions used to build clients, keyed by service, use function not map to allow late binding by tests
-func lookupClientFunc(service string) func(session2 *session.Session, config *aws.Config) interface{} {
+func clientBuilder(service, region string, creds *credentials.Credentials) interface{} {
+	var clientFunc func(session *session.Session, config *aws.Config) interface{}
 	switch service {
 	case "acm":
-		return AcmClientFunc
+		clientFunc = AcmClientFunc
 	case "applicationautoscaling":
-		return ApplicationAutoScalingClientFunc
+		clientFunc = ApplicationAutoScalingClientFunc
 	case "cloudformation":
-		return CloudFormationClientFunc
+		clientFunc = CloudFormationClientFunc
 	case "cloudtrail":
-		return CloudTrailClientFunc
+		clientFunc = CloudTrailClientFunc
 	case "cloudwatchlogs":
-		return CloudWatchLogsClientFunc
+		clientFunc = CloudWatchLogsClientFunc
 	case "configservice":
-		return ConfigServiceClientFunc
+		clientFunc = ConfigServiceClientFunc
 	case "dynamodb":
-		return DynamoDBClientFunc
+		clientFunc = DynamoDBClientFunc
 	case "ec2":
-		return EC2ClientFunc
+		clientFunc = EC2ClientFunc
 	case "ecs":
-		return EcsClientFunc
+		clientFunc = EcsClientFunc
 	case "elbv2":
-		return Elbv2ClientFunc
+		clientFunc = Elbv2ClientFunc
 	case "guardduty":
-		return GuardDutyClientFunc
+		clientFunc = GuardDutyClientFunc
 	case "iam":
-		return IAMClientFunc
+		clientFunc = IAMClientFunc
 	case "kms":
-		return KmsClientFunc
+		clientFunc = KmsClientFunc
 	case "lambda":
-		return LambdaClientFunc
+		clientFunc = LambdaClientFunc
 	case "rds":
-		return RDSClientFunc
+		clientFunc = RDSClientFunc
 	case "redshift":
-		return RedshiftClientFunc
+		clientFunc = RedshiftClientFunc
 	case "s3":
-		return S3ClientFunc
+		clientFunc = S3ClientFunc
 	case "waf":
-		return WafClientFunc
+		clientFunc = WafClientFunc
 	case "waf-regional":
-		return WafRegionalClientFunc
+		clientFunc = WafRegionalClientFunc
 	default:
-		return nil
+		panic("cannot build client for unsupported service: " + service)
 	}
+	return clientFunc(snapshotPollerSession, &aws.Config{
+		Credentials: creds,
+		Region:      &region,
+	})
 }
 
 // getClient returns a valid client for a given integration, service, and region using caching.
@@ -141,32 +130,19 @@ func getClient(pollerInput *awsmodels.ResourcePollerInput, service string, regio
 	}
 
 	// Build a new client on cache miss OR if the client in the cache has expired credentials
-
-	// Build the new session and credentials
-	sess := newSessionFunc(region)
-	creds := assumeRoleFunc(pollerInput, sess)
-
-	// Build the new client and cache it with the credentials used to build it
-	if clientFunc := lookupClientFunc(service); clientFunc != nil {
-		client := clientFunc(sess, &aws.Config{Credentials: creds})
-		clientCache[cacheKey] = cachedClient{
-			Client:      client,
-			Credentials: creds,
-		}
-		return client
+	creds := assumeRoleFunc(pollerInput, snapshotPollerSession)
+	client := clientBuilder(service, region, creds)
+	clientCache[cacheKey] = cachedClient{
+		Client:      client,
+		Credentials: creds,
 	}
-
-	zap.L().Error("cannot build client for unsupported service",
-		zap.String("service", service),
-	)
-	return nil
+	return client
 }
 
 // assumeRoleProvider configures the AssumeRole provider parameters to pass into STS.
 func assumeRoleProvider() func(p *stscreds.AssumeRoleProvider) {
 	return func(p *stscreds.AssumeRoleProvider) {
 		p.Duration = assumeRoleDuration
-		p.ExpiryWindow = assumeRoleExpiryWindow
 	}
 }
 
