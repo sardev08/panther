@@ -1,5 +1,5 @@
-const x = {
+const y = {
   '1': false,
 };
 
-console.log(x); // eslint-disable-line
+console.log(y); // eslint-disable-line
