@@ -127,7 +127,7 @@ const createApolloClient = (history: History<LocationErrorState>) =>
           keyFields: ['alertId'],
         },
         AlertSummary: {
-          keyFields: ['aler2tId'],
+          keyFields: ['alertId'],
         },
         ComplianceIntegration: {
           keyFields: ['integrationId'],
