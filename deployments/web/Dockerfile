@@ -37,7 +37,6 @@ ADD package.json package-lock.json ./
 RUN npm i
 
 # Mount the necessary source code
-ADD .babelrc ./
 ADD .git .git
 ADD out/.env.aws out/.env.aws
 ADD web web
