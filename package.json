@@ -123,6 +123,6 @@
     "serve": "node web/scripts/serve.js",
     "generate-gql": "graphql-codegen",
     "generate-gql:watch": "graphql-codegen --watch",
-    "lint": "eslint \"{web/src/**,.}/*.{ts,js,tsx}\" && prettier --list-different \"{web/src/**,.}/*.{ts,js,tsx,md,json,yml}\" && tsc -p ."
+    "lint": "eslint \"{web/src/**,.}/*.{ts,js,tsx}\" && prettier --list-different \"{web/src/**,.}/*.{ts,js,tsx,md,json,yml}\" && tsc -p web"
   }
 }
