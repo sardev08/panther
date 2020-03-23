@@ -18,9 +18,8 @@
 
 import { Text, Box, Heading, Spinner, Flex } from 'pouncejs';
 import React from 'react';
-import { extractErrorMessage, getLogIntegrationStackName } from 'Helpers/utils';
+import { extractErrorMessage, getLogIntegrationStackName, toStackName } from 'Helpers/utils';
 import { useFormikContext } from 'formik';
-import kebabCase from 'lodash-es/kebabCase';
 import { LogIntegration } from 'Generated/schema';
 import { useGetLogCfnTemplate } from './graphql/getLogCfnTemplate.generated';
 import { LogSourceWizardValues } from '../LogSourceWizard';
@@ -60,7 +59,7 @@ const StackDeployment: React.FC = () => {
     '?templateURL=https://panther-public-cloudformation-templates.s3-us-west-2.amazonaws.com/panther-log-analysis-iam/v1.0.0/template.yml' +
     `&stackName=${stackName}` +
     `&param_MasterAccountId=${process.env.AWS_ACCOUNT_ID}` +
-    `&param_RoleSuffix=${kebabCase(values.integrationLabel)}` +
+    `&param_RoleSuffix=${toStackName(values.integrationLabel)}` +
     `&param_S3Bucket=${values.s3Bucket}` +
     `&param_S3Prefix=${values.s3Prefix}` +
     `&param_KmsKey=${values.kmsKey}`;
