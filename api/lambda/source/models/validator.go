@@ -26,7 +26,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
-const(
+const (
 	integrationLabelMaxLength = 32
 )
 

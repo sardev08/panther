@@ -56,7 +56,7 @@ func genLogProcessingLabel(awsSession *session.Session) string {
 // onboard Panther to monitor Panther account
 func deployOnboard(awsSession *session.Session, settings *config.PantherConfig, bucketOutputs, backendOutputs map[string]string) {
 	deployOnboardTemplate(awsSession, settings, bucketOutputs)
-	registerPantherAccount(awsSession, bucketOutputs, backendOutputs) // this MUST follow the CloudSec roles being deployed
+	registerPantherAccount(awsSession, settings, bucketOutputs, backendOutputs) // this MUST follow the CloudSec roles being deployed
 	deployRealTimeStackSet(awsSession, backendOutputs["AWSAccountId"])
 }
 
@@ -84,7 +84,7 @@ func deployOnboardTemplate(awsSession *session.Session, settings *config.Panther
 	configureLogProcessingUsingAPIs(awsSession, settings, bucketOutputs, onboardOutputs)
 }
 
-func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendOutputs map[string]string) {
+func registerPantherAccount(awsSession *session.Session, settings *config.PantherConfig, bucketOutputs, backendOutputs map[string]string) {
 	logger.Infof("deploy: registering account %s with Panther for monitoring", backendOutputs["AWSAccountId"])
 
 	// avoid alarms/errors and check first if the integrations exist
@@ -120,7 +120,7 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 
 	if registerCloudSec {
 		input := &models.LambdaInput{
-			PutIntegration:                 &models.PutIntegrationInput{
+			PutIntegration: &models.PutIntegrationInput{
 				PutIntegrationSettings: models.PutIntegrationSettings{
 					AWSAccountID:       aws.String(backendOutputs["AWSAccountId"]),
 					IntegrationLabel:   aws.String(cloudSecLabel),
@@ -141,6 +141,14 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 			backendOutputs["AWSAccountId"])
 	}
 
+	logTypes := []string{"AWS.S3ServerAccess", "AWS.VPCFlow", "AWS.ALB"}
+	if settings.OnboardParameterValues.EnableCloudTrail {
+		logTypes = append(logTypes, "AWS.CloudTrail")
+	}
+	if settings.OnboardParameterValues.EnableGuardDuty {
+		logTypes = append(logTypes, "AWS.GuardDuty")
+	}
+
 	if registerLogProcessing {
 		input := &models.LambdaInput{
 			PutIntegration: &models.PutIntegrationInput{
@@ -150,7 +158,7 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 					IntegrationType:  aws.String(models.IntegrationTypeAWS3),
 					UserID:           aws.String(mageUserID),
 					S3Bucket:         aws.String(bucketOutputs["AuditLogsBucket"]),
-					LogTypes:         aws.StringSlice([]string{"AWS.S3ServerAccess"}),
+					LogTypes:         aws.StringSlice(logTypes),
 				},
 			},
 		}
