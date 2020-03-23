@@ -119,10 +119,8 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 	}
 
 	if registerCloudSec {
-		var cloudSecInput = struct {
-			PutIntegration *models.PutIntegrationInput
-		}{
-			&models.PutIntegrationInput{
+		input := &models.LambdaInput{
+			PutIntegration:                 &models.PutIntegrationInput{
 				PutIntegrationSettings: models.PutIntegrationSettings{
 					AWSAccountID:       aws.String(backendOutputs["AWSAccountId"]),
 					IntegrationLabel:   aws.String(cloudSecLabel),
@@ -134,7 +132,7 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 				},
 			},
 		}
-		if err := invokeLambda(awsSession, "panther-source-api", cloudSecInput, nil); err != nil &&
+		if err := invokeLambda(awsSession, "panther-source-api", input, nil); err != nil &&
 			!strings.Contains(err.Error(), "already onboarded") {
 
 			logger.Fatalf("error calling lambda to register account for cloud security: %v", err)
@@ -144,10 +142,8 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 	}
 
 	if registerLogProcessing {
-		var logProcessingInput = struct {
-			PutIntegration *models.PutIntegrationInput
-		}{
-			&models.PutIntegrationInput{
+		input := &models.LambdaInput{
+			PutIntegration: &models.PutIntegrationInput{
 				PutIntegrationSettings: models.PutIntegrationSettings{
 					AWSAccountID:     aws.String(backendOutputs["AWSAccountId"]),
 					IntegrationLabel: aws.String(genLogProcessingLabel(awsSession)),
@@ -158,7 +154,8 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 				},
 			},
 		}
-		if err := invokeLambda(awsSession, "panther-source-api", logProcessingInput, nil); err != nil &&
+
+		if err := invokeLambda(awsSession, "panther-source-api", input, nil); err != nil &&
 			!strings.Contains(err.Error(), "already onboarded") {
 
 			logger.Fatalf("error calling lambda to register account for log processing: %v", err)
