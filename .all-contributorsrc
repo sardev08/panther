@@ -1,0 +1,25 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "alexmylonas",
+      "name": "Alex Mylonas",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/14179917?v=4",
+      "profile": "https://github.com/alexmylonas",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "panther",
+  "projectOwner": "panther-labs",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
