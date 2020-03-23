@@ -26,6 +26,10 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 )
 
+const(
+	integrationLabelMaxLength = 32
+)
+
 var (
 	integrationLabelValidatorRegex = regexp.MustCompile("^[0-9a-zA-Z- ]+$")
 )
@@ -44,7 +48,7 @@ func Validator() (*validator.Validate, error) {
 
 func validateIntegrationLabel(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
-	if len(strings.TrimSpace(value)) == 0 || len(value) > 100 {
+	if len(strings.TrimSpace(value)) == 0 || len(value) > integrationLabelMaxLength {
 		return false
 	}
 	return integrationLabelValidatorRegex.MatchString(value)
