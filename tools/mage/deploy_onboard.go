@@ -270,7 +270,7 @@ func guardDutyEnabledOutsidePanther(awsSession *session.Session, settings *confi
 	// we need to check that it is THIS region's stack the enabled it
 	_, onboardOutput, err := describeStack(cloudformation.New(awsSession), onboardStack)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == cloudformation.ErrCodeStackSetNotFoundException {
+		if isStackNotExistsError(onboardStack, err) {
 			return true // not deployed anything yet in this region BUT it is enabled, must be another deployment
 		}
 		logger.Fatalf("deploy: cannot check stack %s: %v", onboardStack, err)
