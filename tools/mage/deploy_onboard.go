@@ -141,15 +141,15 @@ func registerPantherAccount(awsSession *session.Session, settings *config.Panthe
 			backendOutputs["AWSAccountId"])
 	}
 
-	logTypes := []string{"AWS.S3ServerAccess", "AWS.VPCFlow", "AWS.ALB"}
-	if settings.OnboardParameterValues.EnableCloudTrail {
-		logTypes = append(logTypes, "AWS.CloudTrail")
-	}
-	if settings.OnboardParameterValues.EnableGuardDuty {
-		logTypes = append(logTypes, "AWS.GuardDuty")
-	}
-
 	if registerLogProcessing {
+		logTypes := []string{"AWS.S3ServerAccess", "AWS.VPCFlow", "AWS.ALB"}
+		if settings.OnboardParameterValues.EnableCloudTrail {
+			logTypes = append(logTypes, "AWS.CloudTrail")
+		}
+		if settings.OnboardParameterValues.EnableGuardDuty {
+			logTypes = append(logTypes, "AWS.GuardDuty")
+		}
+
 		input := &models.LambdaInput{
 			PutIntegration: &models.PutIntegrationInput{
 				PutIntegrationSettings: models.PutIntegrationSettings{
