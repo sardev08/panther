@@ -61,7 +61,7 @@ export type AlertSummary = {
   eventsMatched: Scalars['Int'];
   updateTime: Scalars['AWSDateTime'];
   ruleId?: Maybe<Scalars['String']>;
-  severity?: Maybe<Scalars['String']>;
+  severity: Scalars['String'];
   dedupString?: Maybe<Scalars['String']>;
 };
 
@@ -1294,7 +1294,7 @@ export type AlertSummaryResolvers<
   eventsMatched?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updateTime?: Resolver<ResolversTypes['AWSDateTime'], ParentType, ContextType>;
   ruleId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  severity?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  severity?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   dedupString?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: isTypeOfResolverFn<ParentType>;
 };
