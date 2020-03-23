@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -35,6 +36,9 @@ func Validator() (*validator.Validate, error) {
 	if err := result.RegisterValidation("integrationLabel", validateIntegrationLabel); err != nil {
 		return nil, err
 	}
+	if err := result.RegisterValidation("kmsKeyArn", validateKmsKeyArn); err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
@@ -44,4 +48,17 @@ func validateIntegrationLabel(fl validator.FieldLevel) bool {
 		return false
 	}
 	return integrationLabelValidatorRegex.MatchString(value)
+}
+
+func validateKmsKeyArn(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	keyArn, err := arn.Parse(value)
+	if err != nil {
+		return false
+	}
+
+	if keyArn.Service != "kms" || !strings.HasPrefix(keyArn.Resource, "key") {
+		return false
+	}
+	return true
 }

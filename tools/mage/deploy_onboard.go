@@ -152,6 +152,7 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 					IntegrationType:  aws.String(models.IntegrationTypeAWS3),
 					UserID:           aws.String(mageUserID),
 					S3Bucket:         aws.String(bucketOutputs["AuditLogsBucket"]),
+					LogTypes:         aws.StringSlice([]string{"AWS.S3ServerAccess"}),
 				},
 			},
 		}
