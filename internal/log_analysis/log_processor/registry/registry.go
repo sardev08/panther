@@ -22,6 +22,7 @@ import (
 	"github.com/panther-labs/panther/api/lambda/core/log_analysis/log_processor/models"
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers"
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers/awslogs"
+	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers/fluentdsysloglogs"
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers/nginxlogs"
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers/osquerylogs"
 	"github.com/panther-labs/panther/internal/log_analysis/log_processor/parsers/osseclogs"
@@ -66,6 +67,10 @@ var (
 			&sysloglogs.RFC3164{}, sysloglogs.RFC3164Desc),
 		(&sysloglogs.RFC5424Parser{}).LogType(): DefaultLogParser(&sysloglogs.RFC5424Parser{},
 			&sysloglogs.RFC5424{}, sysloglogs.RFC5424Desc),
+		(&fluentdsysloglogs.RFC3164Parser{}).LogType(): DefaultLogParser(&fluentdsysloglogs.RFC3164Parser{},
+			&fluentdsysloglogs.RFC3164{}, fluentdsysloglogs.RFC3164Desc),
+		(&fluentdsysloglogs.RFC5424Parser{}).LogType(): DefaultLogParser(&fluentdsysloglogs.RFC5424Parser{},
+			&fluentdsysloglogs.RFC5424{}, fluentdsysloglogs.RFC5424Desc),
 	}
 )
 
