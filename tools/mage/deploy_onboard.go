@@ -129,6 +129,8 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 					IntegrationType:  aws.String(models.IntegrationTypeAWSScan),
 					ScanIntervalMins: aws.Int(1440),
 					UserID:           aws.String(mageUserID),
+					CWEEnabled: aws.Bool(true),
+					RemediationEnabled: aws.Bool(true),
 				},
 			},
 		}
