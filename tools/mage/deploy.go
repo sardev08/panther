@@ -32,7 +32,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -196,34 +195,10 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 	go func() {
 		params := map[string]string{
 			"AccessLogsBucket":           settings.Monitoring.S3AccessLogsBucket,
+			"CertificateArn":             certificateArn(awsSession, settings),
 			"CloudWatchLogRetentionDays": strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
 			"CustomDomain":               settings.Web.CustomDomain,
 			"TracingMode":                settings.Monitoring.TracingMode,
-		}
-
-		// The certificate arn will come from one of:
-		//
-		// 1) The settings file, if it's specified
-		// 2) The bootstrap stack, if it already exists
-		// 3) Uploading an ACM or IAM cert
-		if settings.Web.CertificateArn == "" {
-			_, outputs, err := describeStack(cloudformation.New(awsSession), bootstrapStack)
-			if err != nil {
-				if errStackDoesNotExist(err) {
-					// The stack doesn't exist yet - upload a new certificate
-					params["CertificateArn"] = uploadLocalCertificate(awsSession)
-				} else {
-					// Some other error describing the stack: fail
-					logger.Fatal(err)
-				}
-			}
-
-			// No cert listed in the settings file, but the stack already exists with one.
-			// CFN makes us re-specify the parameter if it already had a non-default value.
-			params["CertificateArn"] = outputs["CertificateArn"]
-		} else {
-			// Always use the value in the settings file if it's configured
-			params["CertificateArn"] = settings.Web.CertificateArn
 		}
 
 		outputs = deployTemplate(awsSession, bootstrapTemplate, "", bootstrapStack, params)

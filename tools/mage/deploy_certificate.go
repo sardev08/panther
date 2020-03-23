@@ -35,7 +35,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm"
+	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/iam"
+
+	"github.com/panther-labs/panther/tools/config"
 )
 
 const (
@@ -45,6 +48,38 @@ const (
 	keyLength           = 2048
 	certFilePermissions = 0700
 )
+
+// Returns the certificate arn for the bootstrap stack. One of:
+//
+// 1) The settings file, if it's specified
+// 2) The bootstrap stack, if it already exists
+// 3) Uploading an ACM or IAM cert
+func certificateArn(awsSession *session.Session, settings *config.PantherConfig) string {
+	if settings.Web.CertificateArn != "" {
+		// Always use the value in the settings file, if it exists
+		return settings.Web.CertificateArn
+	}
+
+	_, outputs, err := describeStack(cloudformation.New(awsSession), bootstrapStack)
+	if err == nil {
+		// The bootstrap stack already exists
+		// CFN makes us re-specify the parameter if it already had a non-default value.
+		arn := outputs["CertificateArn"]
+		if arn == "" {
+			logger.Fatalf("output CertificateArn from stack %s is blank", bootstrapStack)
+		}
+		return arn
+	}
+
+	if errStackDoesNotExist(err) {
+		// The stack doesn't exist yet - upload a new certificate
+		return uploadLocalCertificate(awsSession)
+	}
+
+	// Some other error describing the bootstrap stack
+	logger.Fatal(err)
+	return "n/a" // unreachable code
+}
 
 // Upload a local self-signed TLS certificate to ACM. Only needs to happen once per installation
 //

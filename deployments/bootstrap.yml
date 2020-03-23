@@ -491,6 +491,7 @@ Resources:
 
   PublicLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: AuditLogsBucketPolicy
     Properties:
       Name: web
       # <cfndoc>
