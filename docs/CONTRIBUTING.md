@@ -16,4 +16,4 @@ Prior to contributing code, you will be required to sign our [Contributor Licens
 
 If you have contributed to the repo and you can't see yourself in our [Contributors section](https://github.com/panther-labs/panther#contributors), please
 follow [the instructions](https://allcontributors.org/docs/en/bot/usage) to manually add yourself to
-it.
+it. The available contribution types can be found [here](https://allcontributors.org/docs/en/emoji-key).
