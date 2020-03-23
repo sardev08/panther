@@ -23,7 +23,6 @@ import {
   ActiveSuppressCount,
   ComplianceIntegration,
   ComplianceStatusCounts,
-  LogIntegration,
   OrganizationReportBySeverity,
   ScannedResources,
 } from 'Generated/schema';
@@ -243,14 +242,4 @@ export const copyTextToClipboard = (text: string) => {
 
 export const isNumber = (value: string) => /^-{0,1}\d+$/.test(value);
 
-export const toStackName = (val: string) => val.replace(/ /g, '-').toLowerCase();
-
-export const getComplianceIntegrationStackName = () => {
-  return 'panther-cloud-security';
-};
-
-export const getLogIntegrationStackName = (
-  source: Partial<LogIntegration> & Pick<LogIntegration, 'integrationLabel'>
-) => {
-  return `panther-log-analysis-${toStackName(source.integrationLabel)}`;
-};
+export const toStackNameFormat = (val: string) => val.replace(/ /g, '-').toLowerCase();
