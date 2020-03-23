@@ -1,0 +1,28 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "austinbyers",
+      "name": "Austin Byers",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/3608925?v=4",
+      "profile": "https://www.linkedin.com/in/austinbyers/",
+      "contributions": [
+        "code",
+        "doc",
+        "security",
+        "bug",
+        "infra"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "panther",
+  "projectOwner": "panther-labs",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
