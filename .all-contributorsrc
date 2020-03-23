@@ -1,0 +1,24 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "sugandhalahoti",
+      "name": "Sugandha",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/60883353?v=4",
+      "profile": "https://github.com/sugandhalahoti",
+      "contributions": [
+        "doc"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "panther",
+  "projectOwner": "panther-labs",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
