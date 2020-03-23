@@ -124,12 +124,12 @@ func registerPantherAccount(awsSession *session.Session, bucketOutputs, backendO
 		}{
 			&models.PutIntegrationInput{
 				PutIntegrationSettings: models.PutIntegrationSettings{
-					AWSAccountID:     aws.String(backendOutputs["AWSAccountId"]),
-					IntegrationLabel: aws.String(cloudSecLabel),
-					IntegrationType:  aws.String(models.IntegrationTypeAWSScan),
-					ScanIntervalMins: aws.Int(1440),
-					UserID:           aws.String(mageUserID),
-					CWEEnabled: aws.Bool(true),
+					AWSAccountID:       aws.String(backendOutputs["AWSAccountId"]),
+					IntegrationLabel:   aws.String(cloudSecLabel),
+					IntegrationType:    aws.String(models.IntegrationTypeAWSScan),
+					ScanIntervalMins:   aws.Int(1440),
+					UserID:             aws.String(mageUserID),
+					CWEEnabled:         aws.Bool(true),
 					RemediationEnabled: aws.Bool(true),
 				},
 			},
