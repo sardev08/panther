@@ -99,17 +99,14 @@ func getSession() (*session.Session, error) {
 	return awsSession, nil
 }
 
-// Return true if CF stack exists
-func stackExists(cfClient *cloudformation.CloudFormation, stackName string) (bool, error) {
-	input := &cloudformation.DescribeStacksInput{StackName: aws.String(stackName)}
-	_, err := cfClient.DescribeStacks(input)
-	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "ValidationError" {
-			err = nil
-		}
-		return false, err
+// Returns true if the given error is from describing a stack that doesn't exist.
+func errStackDoesNotExist(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "ValidationError" &&
+		strings.Contains(awsErr.Message(), "does not exist") {
+
+		return true
 	}
-	return true, nil
+	return false
 }
 
 // Return true if CF stack set exists

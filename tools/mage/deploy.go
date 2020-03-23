@@ -77,7 +77,7 @@ const (
 	logAnalysisTemplate  = "deployments/log_analysis.yml"
 	metricFilterStack    = "panther-cw-metric-filters"
 	metricFilterTemplate = "out/deployments/monitoring/metrics.json"
-	onboardStack         = "panther-app-onboard"
+	onboardStack         = "panther-onboard"
 	onboardTemplate      = "deployments/onboard.yml"
 
 	// Python layer
@@ -201,15 +201,26 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 			"TracingMode":                settings.Monitoring.TracingMode,
 		}
 
+		// The certificate arn will come from one of:
+		//
+		// 1) The settings file, if it's specified
+		// 2) The bootstrap stack, if it already exists
+		// 3) Uploading an ACM or IAM cert
 		if settings.Web.CertificateArn == "" {
-			exists, err := stackExists(cloudformation.New(awsSession), bootstrapStack)
+			_, outputs, err := describeStack(cloudformation.New(awsSession), bootstrapStack)
 			if err != nil {
-				logger.Fatal(err)
+				if errStackDoesNotExist(err) {
+					// The stack doesn't exist yet - upload a new certificate
+					params["CertificateArn"] = uploadLocalCertificate(awsSession)
+				} else {
+					// Some other error describing the stack: fail
+					logger.Fatal(err)
+				}
 			}
-			if !exists {
-				// The parameter only needs to be specified on the first deployment
-				params["CertificateArn"] = uploadLocalCertificate(awsSession)
-			}
+
+			// No cert listed in the settings file, but the stack already exists with one.
+			// CFN makes us re-specify the parameter if it already had a non-default value.
+			params["CertificateArn"] = outputs["CertificateArn"]
 		} else {
 			// Always use the value in the settings file if it's configured
 			params["CertificateArn"] = settings.Web.CertificateArn

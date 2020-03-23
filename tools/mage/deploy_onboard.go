@@ -138,25 +138,27 @@ func registerPantherAccount(awsSession *session.Session, accountID, auditLogsBuc
 	}
 
 	if registerLogProcessing {
-		var logProcessingInput = struct {
-			PutIntegration *models.PutIntegrationInput
-		}{
-			&models.PutIntegrationInput{
-				PutIntegrationSettings: models.PutIntegrationSettings{
-					AWSAccountID:     aws.String(accountID),
-					IntegrationLabel: aws.String(genLogProcessingLabel(awsSession)),
-					IntegrationType:  aws.String(models.IntegrationTypeAWS3),
-					UserID:           aws.String(mageUserID),
-					S3Bucket:         aws.String(auditLogsBucket),
-				},
-			},
-		}
-		if err := invokeLambda(awsSession, "panther-source-api", logProcessingInput, nil); err != nil &&
-			!strings.Contains(err.Error(), "already onboarded") {
-
-			logger.Fatalf("error calling lambda to register account for log processing: %v", err)
-		}
-		logger.Infof("deploy: account %s registered for log processing", accountID)
+		// TODO: re-enable once https://github.com/panther-labs/panther/issues/494 is fixed
+		logger.Warnf("log processing not yet enabled for %s", auditLogsBucket)
+		//var logProcessingInput = struct {
+		//	PutIntegration *models.PutIntegrationInput
+		//}{
+		//	&models.PutIntegrationInput{
+		//		PutIntegrationSettings: models.PutIntegrationSettings{
+		//			AWSAccountID:     aws.String(accountID),
+		//			IntegrationLabel: aws.String(genLogProcessingLabel(awsSession)),
+		//			IntegrationType:  aws.String(models.IntegrationTypeAWS3),
+		//			UserID:           aws.String(mageUserID),
+		//			S3Bucket:         aws.String(auditLogsBucket),
+		//		},
+		//	},
+		//}
+		//if err := invokeLambda(awsSession, "panther-source-api", logProcessingInput, nil); err != nil &&
+		//	!strings.Contains(err.Error(), "already onboarded") {
+		//
+		//	logger.Fatalf("error calling lambda to register account for log processing: %v", err)
+		//}
+		//logger.Infof("deploy: account %s registered for log processing", accountID)
 	}
 }
 
@@ -259,16 +261,17 @@ func guardDutyEnabledOutsidePanther(awsSession *session.Session, settings *confi
 	if len(output.DetectorIds) != 1 {
 		return false // we only make 1
 	}
+
 	// we need to check that it is THIS region's stack the enabled it
 	_, onboardOutput, err := describeStack(cloudformation.New(awsSession), onboardStack)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == cloudformation.ErrCodeStackSetNotFoundException {
+		if errStackDoesNotExist(err) {
 			return true // not deployed anything yet in this region BUT it is enabled, must be another deployment
 		}
 		logger.Fatalf("deploy: cannot check stack %s: %v", onboardStack, err)
 	}
 	// if my stack has no reference, then it must have been enabled by another deployment
-	return len(onboardOutput) == 0 || onboardOutput["GuardDutyDetectorId"] == ""
+	return onboardOutput["GuardDutyDetectorId"] == ""
 }
 
 func configureLogProcessingGuardDuty(

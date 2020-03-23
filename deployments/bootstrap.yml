@@ -714,6 +714,9 @@ Outputs:
     Value: !Ref Source
 
   # Networking + elb
+  CertificateArn:
+    Description: The ARN of the TLS certificate used by the ALB listener
+    Value: !Ref CertificateArn
   SubnetOneId:
     Description: Public subnet one
     Value: !Ref PublicSubnetOne

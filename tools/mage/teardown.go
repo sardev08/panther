@@ -186,10 +186,6 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 	handleResult(<-results)
 	handleResult(<-results)
 
-	// This stack may ask for user input during deletion
-	go deleteOnboardStack(awsSession, results)
-	handleResult(<-results)
-
 	// Trigger the deletion of the main stacks in parallel
 	//
 	// The ECS cluster in the bootstrap stack has to wait until the ECS service in the frontend stack is
@@ -205,6 +201,7 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 		glueStack,
 		logAnalysisStack,
 		metricFilterStack,
+		onboardStack,
 	}
 	logger.Infof("deleting CloudFormation stacks: %s",
 		strings.Join(append(parallelStacks, bootstrapStack), ", "))
@@ -227,19 +224,6 @@ func destroyCfnStacks(awsSession *session.Session, identity *sts.GetCallerIdenti
 		return fmt.Errorf("%d stacks failed to delete", errCount)
 	}
 	return nil
-}
-
-// The onboard stack has global IAM roles, ask user if they want to delete since this could affect other regions
-func deleteOnboardStack(awsSession *session.Session, results chan deleteStackResult) {
-	logger.Infof("deleting CloudFormation stack: %s", onboardStack)
-	cfClient := cloudformation.New(awsSession)
-	onboardStackExists, err := stackExists(cfClient, onboardStack)
-	if err != nil {
-		logger.Fatalf("error checking stack %s: %v", onboardStack, err)
-	}
-	if onboardStackExists {
-		go deleteStack(cfClient, aws.String(onboardStack), results) // can be done in background
-	}
 }
 
 func deleteRealTimeEventStack(awsSession *session.Session, identity *sts.GetCallerIdentityOutput, results chan deleteStackResult) {
