@@ -25,7 +25,7 @@ module.exports = {
   /*
    * Run prettier TS, JS, JSON, YAML and Markdown files found anywhere in the project
    */
-  '*.{ts,tsx,js,md,yaml,yml,json}': ['prettier --write', 'git add'],
+  '*.{ts,tsx,js,md,yaml,yml,json}': ['prettier --write'],
 
   /*
    * Run ESLint checks for all TS & JS files found anywhere in hte project
