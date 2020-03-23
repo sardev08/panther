@@ -227,7 +227,10 @@ module.exports = {
           inject: true,
           template: path.resolve(__dirname, 'public/index.ejs'),
           filename: './index.html',
-          templateParameters: process.env,
+          templateParameters: {
+            GRAPHQL_ENDPOINT: process.env.WEB_APPLICATION_GRAPHQL_API_ENDPOINT,
+            AWS_REGION: process.env.AWS_REGION,
+          },
         },
         // If we are in production, we make sure to also minify the HTML
         isEnvProduction
