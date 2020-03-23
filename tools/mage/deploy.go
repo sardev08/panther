@@ -195,7 +195,7 @@ func bootstrap(awsSession *session.Session, settings *config.PantherConfig) map[
 	// Deploy first bootstrap stack
 	go func() {
 		params := map[string]string{
-			"AccessLogsBucket":           settings.Monitoring.AccessLogsBucketName,
+			"AccessLogsBucket":           settings.Monitoring.S3AccessLogsBucket,
 			"CloudWatchLogRetentionDays": strconv.Itoa(settings.Monitoring.CloudWatchLogRetentionDays),
 			"CustomDomain":               settings.Web.CustomDomain,
 			"TracingMode":                settings.Monitoring.TracingMode,
@@ -366,9 +366,6 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 			"Debug":                      strconv.FormatBool(settings.Monitoring.Debug),
 			"LayerVersionArns":           settings.Infra.BaseLayerVersionArns,
 			"TracingMode":                settings.Monitoring.TracingMode,
-
-			"AuditRoleName":       auditRole,
-			"RemediationRoleName": remediationRole,
 		})
 		result <- cloudsecStack
 	}(finishedStacks)
@@ -448,7 +445,7 @@ func deployMainStacks(awsSession *session.Session, settings *config.PantherConfi
 	// Onboard Panther to scan itself
 	go func(result chan string) {
 		if settings.Setup.OnboardSelf {
-			deployOnboard(awsSession, accountID, sourceBucket)
+			deployOnboard(awsSession, settings, accountID, outputs)
 		}
 		result <- onboardStack
 	}(finishedStacks)

@@ -42,16 +42,18 @@ type Infra struct {
 }
 
 type Monitoring struct {
-	AccessLogsBucketName       string `yaml:"AccessLogsBucketName"`
 	AlarmSnsTopicArn           string `yaml:"AlarmSnsTopicArn"`
 	CloudWatchLogRetentionDays int    `yaml:"CloudWatchLogRetentionDays"`
 	Debug                      bool   `yaml:"Debug"`
+	S3AccessLogsBucket         string `yaml:"S3AccessLogsBucket"`
 	TracingMode                string `yaml:"TracingMode"`
 }
 
 type Setup struct {
 	InitialAnalysisSets []string `yaml:"InitialAnalysisSets"`
 	OnboardSelf         bool     `yaml:"OnboardSelf"`
+	EnableCloudTrail    bool     `yaml:"EnableCloudTrail"`
+	EnableGuardDuty     bool     `yaml:"EnableGuardDuty"`
 }
 
 type Web struct {

@@ -48,7 +48,7 @@ Infra:
 
 Monitoring:
   # Use an existing S3 bucket for storing S3 access logs. If not specified, one is created for you.
-  AccessLogsBucketName: ''
+  S3AccessLogsBucket: ''
 
   # This is the arn for the SNS topic you want associated with Panther system alarms.
   # If this is not set alarms will be associated with the SNS topic `panther-alarms`.
@@ -75,6 +75,14 @@ Setup:
 
   # Whether or not the Panther deployment should automatically onboard itself as a data source.
   OnboardSelf: true
+
+  # Whether or not to create a CloudTrail in the Panther account and monitor.
+  # You may want this off if you have org-level CT configured for Panther to avoid ingesting the same data twice.
+  EnableCloudTrail: true
+
+  # Whether or not to enable GuardDuty in the Panther account and monitor.
+  # You may want this off if you have org-level GD configured for Panther.
+  EnableGuardDuty: true
 
 Web:
   # ARN of an AWS ACM certificate used on the loadbalancer presenting the panther web app

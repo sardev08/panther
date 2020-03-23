@@ -65,14 +65,6 @@ Parameters:
     AllowedValues: ['', Active, PassThrough]
     Default: ''
 
-  # Role names
-  AuditRoleName:
-    Type: String
-    Description: The name of the IAM role to assume to perform AWS account/service scans
-  RemediationRoleName:
-    Type: String
-    Description: The name of the IAM role to assume to perform remediation actions
-
 Conditions:
   AttachLayers: !Not [!Equals [!Join ['', !Ref LayerVersionArns], '']]
   DebugEnabled: !Equals [!Ref Debug, true]
@@ -728,7 +720,7 @@ Resources:
           Statement:
             - Effect: Allow
               Action: sts:AssumeRole
-              Resource: !Sub arn:${AWS::Partition}:iam::*:role/${RemediationRoleName}
+              Resource: !Sub arn:${AWS::Partition}:iam::*:role/PantherRemediationRole-${AWS::Region}
 
   ##### Resources API #####
   GatewayInvocationPermission:
@@ -1030,7 +1022,7 @@ Resources:
       Description: Polls AWS resources and writes them to the resources-api
       Environment:
         Variables:
-          AUDIT_ROLE_NAME: !Ref AuditRoleName
+          AUDIT_ROLE_NAME: !Sub PantherAuditRole-${AWS::Region}
           DEBUG: !Ref Debug
           RESOURCES_API_FQDN: !Sub '${ResourcesApiId}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
           RESOURCES_API_PATH: v1
@@ -1084,7 +1076,7 @@ Resources:
           Statement:
             - Effect: Allow
               Action: sts:AssumeRole
-              Resource: !Sub arn:${AWS::Partition}:iam::*:role/${AuditRoleName}
+              Resource: !Sub arn:${AWS::Partition}:iam::*:role/PantherAuditRole-${AWS::Region}
 
   PollerLogGroup:
     Type: AWS::Logs::LogGroup
