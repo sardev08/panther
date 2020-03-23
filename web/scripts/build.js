@@ -31,4 +31,4 @@ loadDotEnvVars('web/.env.sentry');
 // Add all the aws-related ENV vars to process.env
 loadDotEnvVars('out/.env.aws');
 
-spawn('node_modules/.bin/webpack', { stdio: 'inherit' });
+spawn('node_modules/.bin/webpack', ['--config', 'web/webpack.config.js'], { stdio: 'inherit' });

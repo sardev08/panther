@@ -24,4 +24,6 @@ process.env.NODE_ENV = 'development';
 // Add all the aws-related ENV vars to process.env
 loadDotEnvVars('out/.env.aws');
 
-spawn('node_modules/.bin/webpack-dev-server', { stdio: 'inherit' });
+spawn('node_modules/.bin/webpack-dev-server', ['--config', 'web/webpack.config.js'], {
+  stdio: 'inherit',
+});
