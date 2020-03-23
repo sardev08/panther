@@ -143,7 +143,7 @@ func addInvalid(t *testing.T) {
 	expected := &genericapi.LambdaError{
 		ErrorMessage: aws.String(
 			"Key: 'LambdaInput.AddOutput.DisplayName' " +
-			"Error:Field validation for 'DisplayName' failed on the 'required' tag"),
+				"Error:Field validation for 'DisplayName' failed on the 'required' tag"),
 		ErrorType:    aws.String("InvalidInputError"),
 		FunctionName: outputsAPI,
 	}
@@ -235,8 +235,8 @@ func updateInvalid(t *testing.T) {
 	expected := &genericapi.LambdaError{
 		ErrorMessage: aws.String(
 			"Key: 'LambdaInput.UpdateOutput.UserID' Error:Field validation for 'UserID' failed on the 'required' tag\n" +
-			"Key: 'LambdaInput.UpdateOutput.DisplayName' Error:Field validation for 'DisplayName' failed on the 'required' tag\n" +
-			"Key: 'LambdaInput.UpdateOutput.OutputID' Error:Field validation for 'OutputID' failed on the 'required' tag"),
+				"Key: 'LambdaInput.UpdateOutput.DisplayName' Error:Field validation for 'DisplayName' failed on the 'required' tag\n" +
+				"Key: 'LambdaInput.UpdateOutput.OutputID' Error:Field validation for 'OutputID' failed on the 'required' tag"),
 		ErrorType:    aws.String("InvalidInputError"),
 		FunctionName: outputsAPI,
 	}
