@@ -131,6 +131,7 @@ func walkPantherStack(client *cfn.CloudFormation, stackID *string, handler func(
 func isStackNotExistsError(stackID string, err error) bool {
 	if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "ValidationError" &&
 		strings.TrimSpace(awsErr.Message()) == fmt.Sprintf("Stack with id %s does not exist", stackID) {
+
 		return true
 	}
 	return false
