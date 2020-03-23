@@ -58,7 +58,7 @@ const suppressionInputProps = {
   placeholder: 'i.e. aws::s3::* (separate with <Enter>)',
 };
 const resourceTypesInputProps = {
-  placeholder: 'Filter affected resource types',
+  placeholder: 'Filter affsected resource types',
 };
 const tagsInputProps = {
   placeholder: 'i.e. Bucket Security (separate with <Enter>)',
