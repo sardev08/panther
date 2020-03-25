@@ -27,6 +27,7 @@ func TestRFC3164(t *testing.T) {
 
 	// panther fields
 	expectedRFC3164.PantherLogType = aws.String("Fluentd.Syslog3164")
+	expectedRFC3164.AppendAnyDomainNamePtrs(expectedRFC3164.Hostname)
 	expectedRFC3164.PantherEventTime = (*timestamp.RFC3339)(&expectedTime)
 	checkRFC3164(t, log, expectedRFC3164)
 }
@@ -37,6 +38,7 @@ func TestRFC3164TypeType(t *testing.T) {
 }
 
 func checkRFC3164(t *testing.T, log string, expectedRFC3164 *RFC3164) {
+	expectedRFC3164.SetEvent(expectedRFC3164)
 	parser := &RFC3164Parser{}
 	testutil.EqualPantherLog(t, expectedRFC3164.Log(), parser.Parse(log))
 }

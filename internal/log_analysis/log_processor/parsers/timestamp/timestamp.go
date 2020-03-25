@@ -118,7 +118,7 @@ func (ts *FluentdTimestamp) MarshalJSON() ([]byte, error) {
 }
 
 func (ts *FluentdTimestamp) UnmarshalJSON(jsonBytes []byte) (err error) {
-	t, err := time.Parse(fluentdTimestampLayout, string(jsonBytes))
+	t, err := Parse(fluentdTimestampLayout, string(jsonBytes))
 	if err != nil {
 		return
 	}
