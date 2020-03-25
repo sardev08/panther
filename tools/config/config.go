@@ -45,16 +45,16 @@ type Monitoring struct {
 	AlarmSnsTopicArn           string `yaml:"AlarmSnsTopicArn"`
 	CloudWatchLogRetentionDays int    `yaml:"CloudWatchLogRetentionDays"`
 	Debug                      bool   `yaml:"Debug"`
-	EnableS3AccessLogs         bool   `yaml:"EnableS3AccessLogs"`
-	S3AccessLogsBucket         string `yaml:"S3AccessLogsBucket"`
 	TracingMode                string `yaml:"TracingMode"`
 }
 
 type Setup struct {
-	InitialAnalysisSets []string `yaml:"InitialAnalysisSets"`
 	OnboardSelf         bool     `yaml:"OnboardSelf"`
+	EnableS3AccessLogs  bool     `yaml:"EnableS3AccessLogs"`
 	EnableCloudTrail    bool     `yaml:"EnableCloudTrail"`
 	EnableGuardDuty     bool     `yaml:"EnableGuardDuty"`
+	S3AccessLogsBucket  string   `yaml:"S3AccessLogsBucket"`
+	InitialAnalysisSets []string `yaml:"InitialAnalysisSets"`
 }
 
 type Web struct {
