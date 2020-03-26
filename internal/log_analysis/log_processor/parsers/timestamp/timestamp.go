@@ -100,7 +100,16 @@ func (ts *UnixMillisecond) MarshalJSON() ([]byte, error) {
 func (ts *UnixMillisecond) UnmarshalJSON(jsonBytes []byte) (err error) {
 	value, err := strconv.ParseInt(string(jsonBytes), 10, 64)
 	if err != nil {
-		return err
+		f, err := strconv.ParseFloat(string(jsonBytes), 64)
+		if err != nil {
+			return err
+		}
+
+		secs := int64(f)
+		nsecs := int64((f - float64(secs)) * 1e9)
+		t := time.Unix(secs, nsecs)
+		*ts = (UnixMillisecond)(t)
+		return nil
 	}
 	t := time.Unix(0, value*time.Millisecond.Nanoseconds()).UTC()
 	*ts = (UnixMillisecond)(t)
