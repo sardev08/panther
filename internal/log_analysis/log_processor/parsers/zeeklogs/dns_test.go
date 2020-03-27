@@ -35,16 +35,16 @@ func TestZeekDNS(t *testing.T) {
 
 	expectedTime := time.Date(2018, 10, 31, 16, 0, 0, 580233097, time.UTC)
 	expectedEvent := &ZeekDNS{
-		Ts:        (*timestamp.UnixMillisecond)(&expectedTime),
+		Ts:        (*timestamp.UnixFloat)(&expectedTime),
 		UID:       aws.String("CpR9AY39cUCZ0t5qq6"),
 		IDOrigH:   aws.String("172.16.2.16"),
-		IDOrigP:   aws.Int(43720),
+		IDOrigP:   aws.Uint16(43720),
 		IDRespH:   aws.String("172.16.0.2"),
-		IDRespP:   aws.Int(53),
+		IDRespP:   aws.Uint16(53),
 		Proto:     aws.String("udp"),
-		TransID:   aws.Int(27282),
+		TransID:   aws.Uint16(27282),
 		Query:     aws.String("16.2.16.172.in-addr.arpa"),
-		Rcode:     aws.Int(0),
+		Rcode:     aws.Uint64(0),
 		RcodeName: aws.String("NOERROR"),
 		AA:        aws.Bool(false),
 		TC:        aws.Bool(false),
@@ -59,6 +59,7 @@ func TestZeekDNS(t *testing.T) {
 	// panther fields
 	expectedEvent.PantherLogType = aws.String("Zeek.DNS")
 	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDOrigH)
+	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDRespH)
 	expectedEvent.PantherEventTime = (*timestamp.RFC3339)(&expectedTime)
 	checkZeekDNS(t, log, expectedEvent)
 }
