@@ -89,23 +89,10 @@ func (p *ZeekDNSParser) LogType() string {
 
 func (event *ZeekDNS) updatePantherFields(p *ZeekDNSParser) {
 	event.SetCoreFields(p.LogType(), (*timestamp.RFC3339)(event.Ts), event)
-	if event.IDOrigH != nil {
-		// The hostname should be a FQDN, but may also be an IP address. Check for IP, otherwise
-		// add as a domain name. https://tools.ietf.org/html/rfc3164#section-6.2.4
-		hostname := *event.IDOrigH
-		if net.ParseIP(hostname) != nil {
-			event.AppendAnyIPAddresses(hostname)
-		} else {
-			event.AppendAnyDomainNames(hostname)
-		}
+	if net.ParseIP(*event.IDOrigH) != nil {
+		event.AppendAnyIPAddresses(*event.IDOrigH)
 	}
-
-	if event.IDRespH != nil {
-		hostname := *event.IDRespH
-		if net.ParseIP(hostname) != nil {
-			event.AppendAnyIPAddresses(hostname)
-		} else {
-			event.AppendAnyDomainNames(hostname)
-		}
+	if net.ParseIP(*event.IDRespH) != nil {
+		event.AppendAnyIPAddresses(*event.IDRespH)
 	}
 }
