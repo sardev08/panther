@@ -61,6 +61,7 @@ func TestZeekDNS(t *testing.T) {
 	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDOrigH)
 	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDRespH)
 	expectedEvent.AppendAnyDomainNamePtrs(expectedEvent.Query)
+	expectedEvent.AppendAnyDomainNames(expectedEvent.Answers[0])
 	expectedEvent.PantherEventTime = (*timestamp.RFC3339)(&expectedTime)
 	checkZeekDNS(t, log, expectedEvent)
 }

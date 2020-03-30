@@ -50,7 +50,7 @@ type ZeekDNS struct {
 	RA        *bool                `json:"RA,omitempty" description:"The Recursion Available bit in a response message indicates that the name server supports recursive queries."`
 	Z         *int                 `json:"Z,omitempty" description:"A reserved field that is usually zero in queries and responses."`
 	Answers   []string             `json:"answers,omitempty" description:"The set of resource descriptions in the query answer."`
-	TTLs      []float64            `json:"TTLs,omitempty" description:"The caching intervals (in seconds) of the associated RRs described by the answers field."`
+	TTLs      []float64            `json:"TTLs,omitempty" description:"The caching intervals (measured in seconds) of the associated RRs described by the answers field."`
 	Rejected  *bool                `json:"rejected,omitempty" description:"The DNS query was rejected by the server."`
 	parsers.PantherLog
 }
@@ -97,5 +97,13 @@ func (event *ZeekDNS) updatePantherFields(p *ZeekDNSParser) {
 	}
 	if event.Query != nil {
 		event.AppendAnyDomainNames(*event.Query)
+	}
+
+	for _, answer := range event.Answers {
+		if net.ParseIP(answer) != nil {
+			event.AppendAnyIPAddresses(answer)
+		} else {
+			event.AppendAnyDomainNames(answer)
+		}
 	}
 }
