@@ -60,6 +60,7 @@ func TestZeekDNS(t *testing.T) {
 	expectedEvent.PantherLogType = aws.String("Zeek.DNS")
 	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDOrigH)
 	expectedEvent.AppendAnyIPAddressPtrs(expectedEvent.IDRespH)
+	expectedEvent.AppendAnyDomainNamePtrs(expectedEvent.Query)
 	expectedEvent.PantherEventTime = (*timestamp.RFC3339)(&expectedTime)
 	checkZeekDNS(t, log, expectedEvent)
 }
