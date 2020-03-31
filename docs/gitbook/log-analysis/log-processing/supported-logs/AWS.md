@@ -185,13 +185,7 @@ Log format &amp; samples can be seen here: https://docs.aws.amazon.com/awscloudt
 <tr><td valign=top><code>recipientAccountId</code></td><td><code>string</code></td><td valign=top>Represents the account ID that received this event. The recipientAccountID may be different from the CloudTrail userIdentity Element accountId. This can occur in cross-account resource access.</td></tr>
 <tr><td valign=top><code>requestId</code></td><td><code>string</code></td><td valign=top>The value that identifies the request. The service being called generates this value.</td></tr>
 <tr><td valign=top><code>requestParameters</code></td><td><code>string</code></td><td valign=top>The parameters, if any, that were sent with the request. These parameters are documented in the API reference documentation for the appropriate AWS service.</td></tr>
-<tr><td valign=top><code>resources</code></td><td><code>{
-<br>&nbsp;&nbsp;"items": {
-<br>&nbsp;&nbsp;&nbsp;&nbsp;
-<br>&nbsp;&nbsp;&nbsp;&nbsp;"$ref": "CloudTrailResources"
-<br>&nbsp;&nbsp;},
-<br>&nbsp;&nbsp;"type": "array"
-<br>}<br><br>"CloudTrailResources":{
+<tr><td valign=top><code>resources</code></td><td><code>"CloudTrailResources":{
 <br>&nbsp;&nbsp;"arn": {
 <br>&nbsp;&nbsp;&nbsp;&nbsp;"type": "string"
 <br>&nbsp;&nbsp;},
@@ -201,6 +195,12 @@ Log format &amp; samples can be seen here: https://docs.aws.amazon.com/awscloudt
 <br>&nbsp;&nbsp;"type": {
 <br>&nbsp;&nbsp;&nbsp;&nbsp;"type": "string"
 <br>&nbsp;&nbsp;}
+<br>}<br><br>{
+<br>&nbsp;&nbsp;"items": {
+<br>&nbsp;&nbsp;&nbsp;&nbsp;
+<br>&nbsp;&nbsp;&nbsp;&nbsp;"$ref": "CloudTrailResources"
+<br>&nbsp;&nbsp;},
+<br>&nbsp;&nbsp;"type": "array"
 <br>}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code></td><td valign=top>A list of resources accessed in the event.</td></tr>
 <tr><td valign=top><code>responseElements</code></td><td><code>string</code></td><td valign=top>The response element for actions that make changes (create, update, or delete actions). If an action does not change state (for example, a request to get or list objects), this element is omitted. These actions are documented in the API reference docum...</td></tr>
 <tr><td valign=top><code>serviceEventDetails</code></td><td><code>string</code></td><td valign=top>Identifies the service event, including what triggered the event and the result.</td></tr>
@@ -357,7 +357,7 @@ See also GuardDuty Finding Format : https://docs.aws.amazon.com/guardduty/latest
 <tr><td valign=top><code><b>updatedAt</b></code></td><td><code>timestamp</code></td><td valign=top>The last update time of the finding (UTC).</td></tr>
 <tr><td valign=top><code><b>title</b></code></td><td><code>string</code></td><td valign=top>A short description of the finding.</td></tr>
 <tr><td valign=top><code><b>description</b></code></td><td><code>string</code></td><td valign=top>A long description of the finding.</td></tr>
-<tr><td valign=top><code><b>service</b></code></td><td><code>{
+<tr><td valign=top><code><b>service</b></code></td><td><code>"RFC3339": {<br>&nbsp;&nbsp;"type": "timestamp"<br>}<br><br>{
 <br>&nbsp;&nbsp;"additionalInfo": {
 <br>&nbsp;&nbsp;&nbsp;&nbsp;"items": {
 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"type": "integer"
@@ -392,7 +392,7 @@ See also GuardDuty Finding Format : https://docs.aws.amazon.com/guardduty/latest
 <br>&nbsp;&nbsp;"count": {
 <br>&nbsp;&nbsp;&nbsp;&nbsp;"type": "integer"
 <br>&nbsp;&nbsp;}
-<br>}<br><br>"RFC3339": {<br>&nbsp;&nbsp;"type": "timestamp"<br>}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code></td><td valign=top>Additional information about the affected service.</td></tr>
+<br>}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</code></td><td valign=top>Additional information about the affected service.</td></tr>
 <tr><td valign=top><code><b>p_log_type</b></code></td><td><code>string</code></td><td valign=top>Panther added field with type of log</td></tr>
 <tr><td valign=top><code><b>p_row_id</b></code></td><td><code>string</code></td><td valign=top>Panther added field with unique id (within table)</td></tr>
 <tr><td valign=top><code><b>p_event_time</b></code></td><td><code>timestamp</code></td><td valign=top>Panther added standardize event time (UTC)</td></tr>
