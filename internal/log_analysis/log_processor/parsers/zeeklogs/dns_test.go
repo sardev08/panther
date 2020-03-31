@@ -31,7 +31,7 @@ import (
 
 func TestZeekDNS(t *testing.T) {
 	// nolint:lll
-	log := `{"ts":1541001600.580233,"uid":"CpR9AY39cUCZ0t5qq6","id.orig_h":"172.16.2.16","id.orig_p":43720,"id.resp_h":"172.16.0.2","id.resp_p":53,"proto":"udp","trans_id":27282,"query":"16.2.16.172.in-addr.arpa","rcode":0,"rcode_name":"NOERROR","AA":false,"TC":false,"RD":false,"RA":true,"Z":0,"answers":["ip-172-16-2-16.us-west-2.compute.internal"],"TTLs":[60.0],"rejected":false}`
+	log := `{"ts":1541001600.580233,"uid":"CpR9AY39cUCZ0t5qq6","id.orig_h":"172.16.2.16","id.orig_p":43720,"id.resp_h":"172.16.0.2","id.resp_p":53,"proto":"udp","trans_id":27282,"query":"16.2.16.172.in-addr.arpa", "qtype":1,"rcode":0,"rcode_name":"NOERROR","AA":false,"TC":false,"RD":false,"RA":true,"Z":0,"answers":["ip-172-16-2-16.us-west-2.compute.internal"],"TTLs":[60.0],"rejected":false}`
 
 	expectedTime := time.Date(2018, 10, 31, 16, 0, 0, 580233097, time.UTC)
 	expectedEvent := &ZeekDNS{
@@ -44,6 +44,7 @@ func TestZeekDNS(t *testing.T) {
 		Proto:     aws.String("udp"),
 		TransID:   aws.Uint16(27282),
 		Query:     aws.String("16.2.16.172.in-addr.arpa"),
+		QType:     aws.Uint64(aQueryType),
 		Rcode:     aws.Uint64(0),
 		RcodeName: aws.String("NOERROR"),
 		AA:        aws.Bool(false),
